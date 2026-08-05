@@ -43,6 +43,7 @@
 | [推論エンジン・サンプリング手法](tools/inference-methods.md) | NUTS/ADVI/Compound Step/Replay法/Thompson Samplingの定義と使い分け |
 | [事後分布の幾何学的病理](tools/posterior-pathologies.md) | Funnel/Ridge型非識別性/ラベルスイッチング/マルチモダリティの定義と使い分け |
 | [統計的バイアス・概念](tools/statistical-biases.md) | Jensen不等式/Informative Censoring/傾向スコア/Ecological Bias/IPCWの定義と使い分け |
+| [状態空間モデルの型](tools/state-space-models.md) | 変化点モデル/GaussianRandomWalk/非線形状態空間/Markov-Switching/Stochastic Volatilityの定義と使い分け |
 
 ## 対象プロジェクト
 

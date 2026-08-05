@@ -73,7 +73,7 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 ### `GaussianRandomWalk`の`shape`引数によるint8オーバーフローを`steps`/`init_dist`で回避する
 
 - **症状**: `pm.GaussianRandomWalk("x", sigma=..., shape=n)`で、`n`が127を超えると`OverflowError: Python integer ... out of bounds for int8`が発生する。
-- **対処**: `shape`引数を使わず、`steps`と`init_dist`を明示的に指定する(`pm.GaussianRandomWalk("x", sigma=..., init_dist=pm.Normal.dist(0,1), steps=n-1)`)。
+- **対処**: `shape`引数を使わず、`steps`と`init_dist`を明示的に指定する(`pm.GaussianRandomWalk("x", sigma=..., init_dist=pm.Normal.dist(0,1), steps=n-1)`)。`GaussianRandomWalk`そのものの定義は[tools/state-space-models.md](../tools/state-space-models.md#gaussianrandomwalk時変パラメータの状態空間表現)を参照。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#sunspot-周期性を持つ非線形状態空間モデル)
 
 ---
