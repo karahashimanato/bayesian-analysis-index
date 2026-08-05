@@ -17,7 +17,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 - **症状**: 「順位付け(誰が先にイベントを迎えるか)」の指標(C-index)が改善したことをもって、「確率の絶対値」の較正(Brier Score)も改善したと誤解する。
 - **対処**: 両指標を別々に確認する。C-indexが `0.767→0.798` と向上しても、Brier Scoreは `0.104→0.101` とほぼ変化しないことがある。
-- **なぜ効くか**: 順位付けの正しさと確率較正の正しさは数学的に独立な性質であり、一方の改善がもう一方を保証しない。
+- **なぜ効くか**: 順位付けの正しさと確率較正の正しさは数学的に独立な性質であり、一方の改善がもう一方を保証しない。各指標そのものの定義は[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#c-index-time-dependent-auc)を参照。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#2-予測性能評価とモデル比較-held-outデータによる検証)
 
 ---
@@ -26,7 +26,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 - **症状**: `elpd_diff` の絶対値の大きさだけを見て「圧倒的に優れている」と判断すると、誤差の範囲内かもしれない差を過大評価する。
 - **対処**: `elpd_diff` を標準誤差 `dse` で割り、何倍の差があるかで有意性を判断する(例: 差が標準誤差の約6倍)。あわせて有効パラメータ数 `p_LOO` の増加が過学習のペナルティとして妥当な範囲かも確認する。
-- **なぜ効くか**: `elpd_diff` 単体では不確実性の大きさがわからず、`dse` との比較で初めて「意味のある差か」を判断できる。
+- **なぜ効くか**: `elpd_diff` 単体では不確実性の大きさがわからず、`dse` との比較で初めて「意味のある差か」を判断できる。LOOそのものの仕組みは[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#loo-leave-one-out-cross-validation-psis-loo)を参照。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#2-予測性能評価とモデル比較-held-outデータによる検証)
 
 ---
@@ -53,7 +53,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 - **症状**: 複数の評価指標・推定量(SNIPS, SNDR, 単純平均DMなど)を実装した際、それぞれが独立に正しく実装されているかを検証する手段が乏しい。
 - **対処**: 「ランダム方策の一様な傾向スコア」のような特殊構造の下では、理論的に複数の推定量が数式的に一致するはずだという性質を利用し、実データで実際に一致することを確認する。
-- **なぜ効くか**: 特殊ケースでの理論的な恒等式は、実装のバグ検出に使える強力な回帰テストになる。一致しなければ実装のどこかが誤っている。
+- **なぜ効くか**: 特殊ケースでの理論的な恒等式は、実装のバグ検出に使える強力な回帰テストになる。一致しなければ実装のどこかが誤っている。各推定量そのものの定義は[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#sndr-self-normalized-dr)を参照。
 - **登場プロジェクト**: [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#主な発見)
 
 ---
