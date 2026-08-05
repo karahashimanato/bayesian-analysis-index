@@ -62,7 +62,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 
 - **症状**: Divergences=0だがr_hatが高い(例: 1.06)という結果が出たとき、マルチモダリティ(真の多峰性)なのか、単にチェーン長(tune/draws)が足りず各chainがまだ収束しきっていないだけなのか、区別がつかない。
 - **対処**: chainごとの推定値の平均を比較する。近い値に集まっていれば「チェーン長不足」の可能性が高く、tune/drawsを増やして再実行し改善するか確認する。明確に異なる値に分かれていれば真の多峰性を疑う。
-- **なぜ効くか**: マルチモダリティ(chainが別々の谷に落ちる)とチェーン長不足(chainがまだ目標分布に到達していない)は、どちらもr_hatを悪化させるが、原因も対処法も全く異なる。chain別の平均値という一手間の確認だけで、この2つを高い精度で切り分けられる。
+- **なぜ効くか**: マルチモダリティ(chainが別々の谷に落ちる)とチェーン長不足(chainがまだ目標分布に到達していない)は、どちらもr_hatを悪化させるが、原因も対処法も全く異なる。chain別の平均値という一手間の確認だけで、この2つを高い精度で切り分けられる。マルチモダリティそのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#マルチモダリティ多峰性)を参照。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility)
 
 ---

@@ -35,7 +35,7 @@
 
 - **症状**: 階層モデルで個々のグループ効果(腕ごとのCTRなど)を「全体平均からの分布」として直接パラメータ化(中心化パラメータ化)すると、事後分布が漏斗(funnel)状の形になり、NUTSサンプラーが不安定になる。
 - **対処**: グループ効果を `mu_logit + sigma_arm * offset_raw` のように、標準正規分布に従う `offset_raw` とスケール `sigma_arm` の積で表現する非中心化パラメータ化を採用する。
-- **なぜ効くか**: 中心化パラメータ化ではグループ効果とスケールパラメータの間に強い事後相関が生まれ、サンプラーが漏斗の狭い部分を探索しにくくなる。非中心化はこの相関を弱め、パラメータ空間の形を扱いやすくする。
+- **なぜ効くか**: 中心化パラメータ化ではグループ効果とスケールパラメータの間に強い事後相関が生まれ、サンプラーが漏斗の狭い部分を探索しにくくなる。非中心化はこの相関を弱め、パラメータ空間の形を扱いやすくする。funnelそのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#funnel漏斗状の病理neals-funnel)を参照。
 - **登場プロジェクト**: [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#実装上の注意点)
 
 ---
@@ -53,7 +53,7 @@
 
 - **症状**: Hawkes過程の $\kappa$(興奮強度)と $\beta$(減衰速度)のように、2パラメータが「どちらも似た形で強度を押し上げる」関係にあると、事後分布のペアプロットに斜めのridge構造が現れ、divergenceが発生する(指数減衰カーネルを $dt\to0$近傍でテイラー展開すると $1-\beta\cdot dt$となり、 $\kappa$と $\beta$が数式レベルで同じ役割を持ってしまうことが原因)。
 - **対処**: 分岐比 $M=\kappa/\beta$のように、意味のある比そのものを独立パラメータとしてサンプルし、元のパラメータ( $\kappa=M\beta$)を`Deterministic`で導出する。
-- **なぜ効くか**: 比を直接パラメータ化することで、ridge構造の"沿う方向"を1つのパラメータに集約でき、サンプラーが冗長な方向を探索する必要がなくなる。[epidemiological-modelsのR0再パラメータ化](reparameterization.md)と同じ発想だが、こちらは事前予測の暴走ではなくridge型の幾何学的非識別性(divergence)の緩和が目的である点が異なる。
+- **なぜ効くか**: 比を直接パラメータ化することで、ridge構造の"沿う方向"を1つのパラメータに集約でき、サンプラーが冗長な方向を探索する必要がなくなる。[epidemiological-modelsのR0再パラメータ化](reparameterization.md)と同じ発想だが、こちらは事前予測の暴走ではなくridge型の幾何学的非識別性(divergence)の緩和が目的である点が異なる。ridge型非識別性そのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ridge型非識別性)を参照。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
 
 ---
@@ -62,7 +62,7 @@
 
 - **症状**: 対称な構造を持つ複数の潜在成分(MSMの2レジーム、2-factor SVモデルのfast/slow成分)が、MCMCの探索中に"名前"を入れ替えてしまい、事後平均を取ると成分同士が混ざり合って潰れる(例: 2レジームのボラティリティが同じ値に収束し区別不能になる)。divergence=0・r_hat≈1.00でも発生し、サンプリング健全性の指標だけでは検出できない。
 - **対処**: 事後的に成分を区別する場合は`pt.sort()`などで順序制約(例: $\sigma_0 < \sigma_1$)を課す。あらかじめ非対称性を仮定できる場合は、成分ごとに事前分布のレンジを分離する(例: $\phi^{fast}\sim\text{Beta}(2,5)$、 $\phi^{slow}\sim\text{Beta}(20,1.5)$)。
-- **なぜ効くか**: どちらの方法も、モデルの対称性(どちらの成分がどちらの"名前"でも尤度が同じ)を、パラメータ空間に非対称な制約を課すことで壊す。順序制約は事後的な後処理、レンジ分離は事前分布による先回りという違いはあるが、狙いは同じ。
+- **なぜ効くか**: どちらの方法も、モデルの対称性(どちらの成分がどちらの"名前"でも尤度が同じ)を、パラメータ空間に非対称な制約を課すことで壊す。順序制約は事後的な後処理、レンジ分離は事前分布による先回りという違いはあるが、狙いは同じ。ラベルスイッチングそのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ラベルスイッチングlabel-switching)を参照。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-markov-switching-model) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility)
 
 ---
