@@ -62,7 +62,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 - **症状**: モデルの評価指標(LOO, AUC, OPE推定値など)がモデル内部で自己完結していると、「モデルの中では良く見えるが現実とズレている」可能性を排除できない。
 - **対処**: モデルの外にある独立した情報源と突き合わせる。例えば、ログのみから算出したOPE推定値ランキングと、実際の本番方策が収束した腕の選択頻度との順位相関(Spearman)を確認する(rho=0.79)。あるいは集計モデル(BigQuery側)の推定と個体レベルモデル(ローカル側)の推定を突き合わせ、集計由来のバイアス(ecological bias)が生じていないかを検証する。既知の公開オンチェーン指標(UTXO Age Bands等)との突き合わせも同じ位置づけ。
-- **なぜ効くか**: モデル内部の診断(収束・尤度・集計指標)はすべて「モデルの前提が正しい」という条件付きの保証にすぎない。前提そのものの妥当性は、モデルの外にある独立した情報と照らし合わせない限り確認できない。
+- **なぜ効くか**: モデル内部の診断(収束・尤度・集計指標)はすべて「モデルの前提が正しい」という条件付きの保証にすぎない。前提そのものの妥当性は、モデルの外にある独立した情報と照らし合わせない限り確認できない。ecological biasそのものの定義は[tools/statistical-biases.md](../tools/statistical-biases.md#ecological-bias生態学的錯誤)を参照。
 - **登場プロジェクト**: [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#主な発見) / [bitcoin-utxo-survival](https://github.com/karahashimanato/bitcoin-utxo-survival/blob/main/README.md#背景目的)
 
 ---

@@ -17,7 +17,7 @@
 
 - **症状**: パラメータのスケール設定ミス(予測確率が0/1に張り付く)や、Jensen不等式に起因する非直感的な挙動(他パラメータの分散が加わるだけで予測平均がズレる)は、サンプリング後の診断だけでは気づきにくい。
 - **対処**: モデル構築の各段階でサンプリング前にprior predictive checkを行い、予測分布の形・範囲を目視確認する。
-- **なぜ効くか**: 事後分布の診断(r_hat/ESS/divergence)が「健全」でも、それはモデルが収束しただけであってモデル設計自体の誤りは検出できない。prior predictiveは設計段階のミスをサンプリング前に切り分けられる数少ない手段。
+- **なぜ効くか**: 事後分布の診断(r_hat/ESS/divergence)が「健全」でも、それはモデルが収束しただけであってモデル設計自体の誤りは検出できない。prior predictiveは設計段階のミスをサンプリング前に切り分けられる数少ない手段。Jensen不等式そのものの定義は[tools/statistical-biases.md](../tools/statistical-biases.md#jensen不等式jensens-inequality)を参照。
 - **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#得られた方法論的な学び)
 
 ---

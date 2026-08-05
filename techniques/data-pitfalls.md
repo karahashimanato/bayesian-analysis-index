@@ -53,7 +53,7 @@
 
 - **症状**: データの一部(Bitcoinの「おつり」output等)を「これはノイズだろう」というヒューリスティックで除外すると、除外基準そのものがその後の挙動と相関し、生存時間分析ではinformative censoring(打ち切りが無情報でなくなる)のリスクを持ち込む。
 - **対処**: 除外は `is_coinbase` のような客観的でプロトコル由来のフラグに基づくものだけに限定し、推測に基づく除外(change outputのフィルタなど)は行わない。業界標準の指標も同様の方針を取っている場合はそれに倣う。
-- **なぜ効くか**: 恣意的な除外基準は、除外されたデータと除外されなかったデータの間に分析対象の性質と相関する差を生みやすい。客観的なフラグは分析対象の値そのものとは無関係に決まるため、この種のバイアスを持ち込まない。
+- **なぜ効くか**: 恣意的な除外基準は、除外されたデータと除外されなかったデータの間に分析対象の性質と相関する差を生みやすい。客観的なフラグは分析対象の値そのものとは無関係に決まるため、この種のバイアスを持ち込まない。informative censoringそのものの定義は[tools/statistical-biases.md](../tools/statistical-biases.md#informative-censoring情報を持つ打ち切り)を参照。
 - **登場プロジェクト**: [bitcoin-utxo-survival](https://github.com/karahashimanato/bitcoin-utxo-survival/blob/main/README.md#データの定義除外方針)
 
 ---
@@ -71,7 +71,7 @@
 
 - **症状**: Off-Policy Evaluation(IPS/DR/SNIPS等)で使う`propensity_score`のような重み付け用の値を、条件(表示位置`position`など)によらず一様に扱ってしまうと、補正が歪む。
 - **対処**: 補正用の値がどの条件(表示位置、セグメント等)によって分布が変わりうるかを事前に確認し、必要なら条件ごとに扱いを分ける。
-- **なぜ効くか**: 傾向スコアに基づく補正手法(IPS系)は、傾向スコアの推定精度・分布の妥当性にそのまま結果が依存するため、分布が条件依存であることを見落とすとバイアスや高分散の原因になる。
+- **なぜ効くか**: 傾向スコアに基づく補正手法(IPS系)は、傾向スコアの推定精度・分布の妥当性にそのまま結果が依存するため、分布が条件依存であることを見落とすとバイアスや高分散の原因になる。傾向スコアそのものの定義は[tools/statistical-biases.md](../tools/statistical-biases.md#propensity-score傾向スコア)を参照。
 - **登場プロジェクト**: [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#実装上の注意点)
 
 ---

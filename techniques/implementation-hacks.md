@@ -39,7 +39,7 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 ### 打ち切り時刻ちょうどのゼロ除算をわずかなクリップで回避する
 
 - **症状**: IPCW(逆確率重み付け)で、最大生存時間に生存者が集中していると打ち切り生存確率 `G(t_max) = 0` となり、Brier Score/AUC計算がゼロ除算でクラッシュする。
-- **対処**: テストデータの最大時間をごくわずかに(例: 72.5ヶ月→72.4ヶ月)クリップする。
+- **対処**: テストデータの最大時間をごくわずかに(例: 72.5ヶ月→72.4ヶ月)クリップする。IPCWそのものの定義は[tools/statistical-biases.md](../tools/statistical-biases.md#ipcw逆確率重み付けinverse-probability-of-censoring-weighting)を参照。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#診断実装における重要ハック)
 
 ---
