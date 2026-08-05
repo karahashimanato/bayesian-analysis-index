@@ -2,6 +2,33 @@
 
 r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常をどう切り分けるか。
 
+## トラブルシューティングフローチャート
+
+サンプリング後、r_hat → ESS → divergenceの順で確認し、それぞれで問題が出たときにどこへ切り分けるかのフロー。各指標そのものの定義は[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md)、病理の定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md)を参照。
+
+```mermaid
+flowchart TD
+    Start["サンプリング完了"] --> RHat{"r_hatは1.01未満か?"}
+    RHat -->|No, 高い| ChainMean{"chainごとの推定値の<br/>平均を比較する"}
+    ChainMean -->|近い値に集まる| ChainLength["チェーン長不足<br/>→ tune/drawsを増やす"]
+    ChainMean -->|明確に分かれる| MultiModal["マルチモダリティ(多峰性)<br/>→ 尤度面を滑らかにする再パラメータ化<br/>(極形式→直交形式など)"]
+    RHat -->|Yes, 健全| ESS{"特定の変数だけ<br/>ESSが低いか?"}
+    ESS -->|Yes: 離散変数| CompoundStep["Compound Step由来<br/>→ 離散変数の連続緩和を検討"]
+    ESS -->|Yes: ADVI使用中| ADVILimit["mean-field近似の限界<br/>→ NUTSの事後分布と比較"]
+    ESS -->|No, 健全| Divergence{"divergenceは<br/>発生しているか?"}
+    Divergence -->|No| Healthy["健全<br/>(3段階とも問題なし)"]
+    Divergence -->|Yes| DivPattern{"divergent pointsの<br/>分布パターンは?"}
+    DivPattern -->|特定の隅に局所集中| Structural["構造的な非識別性<br/>(Funnel / Ridge型)<br/>→ 非中心化・比への再パラメータ化"]
+    DivPattern -->|全体に薄く分散| StepSize["ステップサイズ不足<br/>→ target_accept引き上げ / tune増加"]
+    StepSize --> Recheck["対処後、ESS/r_hatが<br/>悪化していないか再確認<br/>(表面的改善と根本問題を区別)"]
+```
+
+- チェーン長不足/マルチモダリティ: [chain別の平均値を比較して、真の多峰性かチェーン長不足かを切り分ける](#chain別の平均値を比較して真の多峰性かチェーン長不足かを切り分ける)
+- 離散変数のESS: [離散変数はESSが低くなりやすい](#離散変数はessが低くなりやすい)
+- ADVIの限界: [変分推論(ADVI)とMCMC(NUTS)の不確実性を比較する](#変分推論adviとmcmcnutsの不確実性を比較する)
+- Divergentパターン: [Divergent pointsの分布パターン(局所集中 vs 分散)で病理の種類を切り分ける](#divergent-pointsの分布パターン局所集中-vs-分散で病理の種類を切り分ける)
+- 対処後の再確認: [表面的改善と根本問題の解決を区別する](#表面的改善と根本問題の解決を区別する)
+
 ---
 
 ### r_hat → ESS → divergencesの3段階診断ワークフロー
