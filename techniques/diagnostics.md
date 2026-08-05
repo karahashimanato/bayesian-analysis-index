@@ -8,7 +8,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 
 - **症状**: 診断指標を1つだけ見て「収束した」と判断すると、他の指標が悪化していても見逃す。またmean-field ADVIのようにr_hatが構造的に定義できない手法もある。
 - **対処**: r_hat → ESS → divergencesの順に3段階で確認する。手法の特性(ADVI系はr_hatが使えない等)を理解した上で診断軸を選ぶ。
-- **なぜ効くか**: 各指標は異なる種類の問題(全体の収束/実効サンプルサイズ/局所的な探索失敗)を検出するため、1つだけでは不十分。
+- **なぜ効くか**: 各指標は異なる種類の問題(全体の収束/実効サンプルサイズ/局所的な探索失敗)を検出するため、1つだけでは不十分。各指標そのものの定義は[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md)を参照。
 - **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#得られた方法論的な学び)
 
 ---
@@ -17,7 +17,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 
 - **症状**: `target_accept` を上げてdivergencesが減ると「解決した」と判断しがちだが、ESSやr_hatが悪化しているケースがある。
 - **対処**: 1つの指標の改善だけで満足せず、他の診断指標もあわせて確認し、根本原因(モデル構造・パラメータ化)が解消されたかを判断する。
-- **なぜ効くか**: `target_accept` はサンプラーの挙動を変えるだけで、非識別性やモデル誤設定そのものは解消しない。指標間のトレードオフを見ないと誤診断する。
+- **なぜ効くか**: `target_accept` はサンプラーの挙動を変えるだけで、非識別性やモデル誤設定そのものは解消しない。指標間のトレードオフを見ないと誤診断する。`target_accept`そのものの仕組みは[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md#target_accept)を参照。
 - **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#得られた方法論的な学び) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#lynx-非線形状態空間モデル)(`target_accept=0.99`でdivergenceが155→34に激減した一方、Kのess_bulkが310→27・r_hatが1.00→1.12に悪化した事例)
 
 ---
@@ -71,7 +71,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 
 - **症状**: Divergenceが発生しているが、それが構造的な非識別性(funnel等)によるものか、単にステップサイズがギリギリ足りていないだけなのか、対処の前に判断がつかない。
 - **対処**: divergent pointsがパラメータ空間のどこに現れているかを確認する。特定の隅・境界に局所集中していれば構造的な非識別性・funnelを示唆し、事後分布の主要な塊全体に薄く分散していれば単なるステップサイズ不足の可能性が高く、tune増加などで解消しやすい。
-- **なぜ効くか**: 両者は同じ「divergence数」という指標に現れるが、原因も対処法(モデルの再パラメータ化 vs サンプラー設定の調整)も異なる。分布パターンという追加情報を見ることで、無駄な対処(構造的でない問題にモデル変更で挑む、あるいはその逆)を避けられる。
+- **なぜ効くか**: 両者は同じ「divergence数」という指標に現れるが、原因も対処法(モデルの再パラメータ化 vs サンプラー設定の調整)も異なる。分布パターンという追加情報を見ることで、無駄な対処(構造的でない問題にモデル変更で挑む、あるいはその逆)を避けられる。divergenceそのものの定義は[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md#divergence発散)を参照。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#lynx-非線形状態空間モデル)
 
 ---
@@ -80,7 +80,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 
 - **症状**: 離散変数(変化点の位置`tau`など)のESSだけが、他の連続変数より1桁近く低くなる。
 - **対処**: 可能であれば、離散変数を連続変数に緩和する(例: `switch`関数による離散的な切り替えを、シグモイド関数による滑らかな遷移に置き換え、`tau`自体を連続変数として扱う)ことでNUTSのみでサンプリング可能にする。
-- **なぜ効くか**: PyMCは離散変数に対して自動的にMetropolis法を、連続変数にはNUTSを割り当てるCompound Stepを使う。Metropolisはランダムウォーク的な提案のため自己相関が強く、同じサンプル数でも実効サンプルサイズ(ESS)が少なくなる。ただし連続緩和は新たなパラメータ(遷移の急さ等)を導入することが多く、それがfunnel等の新しい病理を生まないか別途確認が必要になる([reparameterization.md](reparameterization.md)参照)。
+- **なぜ効くか**: PyMCは離散変数に対して自動的にMetropolis法を、連続変数にはNUTSを割り当てるCompound Stepを使う。Metropolisはランダムウォーク的な提案のため自己相関が強く、同じサンプル数でも実効サンプルサイズ(ESS)が少なくなる。ただし連続緩和は新たなパラメータ(遷移の急さ等)を導入することが多く、それがfunnel等の新しい病理を生まないか別途確認が必要になる([reparameterization.md](reparameterization.md)参照)。ESSそのものの定義は[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md#ess-effective-sample-size)を参照。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#nile川-ベイズ変化点分析)
 
 ---

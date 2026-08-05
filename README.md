@@ -39,6 +39,7 @@
 | [評価指標・推定量](tools/evaluation-metrics.md) | LOO/AUC-ROC/Brier Score/C-indexなどのモデル比較指標、IPS/DM/DR/SNIPS/SNDRなどのOPE推定量の定義と使い分け |
 | [観測モデル・尤度分布](tools/observation-models.md) | Poisson/Beta-Binomial/Gamma-Poisson/Dirichlet-Multinomialなどの分布族、Weibull/Piecewise Exponentialなどのハザードモデル、Hawkes過程・forward algorithmの定義と使い分け |
 | [ギリシャ文字の用途一覧](tools/greek-letters.md) | α/β/κ/λ/μ/σ/φなど、各プロジェクトでよく使う記号が何を表すかの早見表 |
+| [MCMC診断指標](tools/mcmc-diagnostics.md) | r_hat/ESS/divergence/target_acceptの定義と使い分け |
 
 ## 対象プロジェクト
 
