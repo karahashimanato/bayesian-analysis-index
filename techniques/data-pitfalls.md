@@ -81,4 +81,4 @@
 - **症状**: 非公式なコミュニティ集計や小サンプル(n=8商品など)から得た結果を、公式データや十分なサンプルサイズから得た結果と同じ確からしさで報告してしまう。
 - **対処**: データソースの性質(公式発表か個人・コミュニティ集計か)、サンプルサイズ、値の丸め方(範囲表記を中間値で近似する等)を分析の限界として明示的に整理し、結果の解釈にどの程度の慎重さが必要かを添える。
 - **なぜ効くか**: モデルの診断(収束・分散)が健全であることは、入力データの信頼性を保証しない。データソースの限界を明示することで、結果を読む側(未来の自分を含む)が過大評価するリスクを減らせる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#ポケモンカード封入率-階層ベイズdirichlet-multinomial)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#ポケモンカード封入率-階層ベイズdirichlet-multinomial)

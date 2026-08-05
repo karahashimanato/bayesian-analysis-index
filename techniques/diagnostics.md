@@ -18,7 +18,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 - **症状**: `target_accept` を上げてdivergencesが減ると「解決した」と判断しがちだが、ESSやr_hatが悪化しているケースがある。
 - **対処**: 1つの指標の改善だけで満足せず、他の診断指標もあわせて確認し、根本原因(モデル構造・パラメータ化)が解消されたかを判断する。
 - **なぜ効くか**: `target_accept` はサンプラーの挙動を変えるだけで、非識別性やモデル誤設定そのものは解消しない。指標間のトレードオフを見ないと誤診断する。
-- **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#得られた方法論的な学び) / [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#lynx-非線形状態空間モデル)(`target_accept=0.99`でdivergenceが155→34に激減した一方、Kのess_bulkが310→27・r_hatが1.00→1.12に悪化した事例)
+- **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#得られた方法論的な学び) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#lynx-非線形状態空間モデル)(`target_accept=0.99`でdivergenceが155→34に激減した一方、Kのess_bulkが310→27・r_hatが1.00→1.12に悪化した事例)
 
 ---
 
@@ -54,7 +54,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 - **症状**: Divergences=0(局所的な探索は健全)にもかかわらず、r_hat=2.10のような深刻な収束の失敗が発生する。trace plotを見ると、複数のchainがそれぞれ全く異なる値(周期パラメータの候補値など)に固定されたまま、一切混ざっていない。
 - **対処**: Divergences=0という結果だけで健全性を判断せず、必ずr_hatも確認する。マルチモダリティが疑われる場合は、chainごとの推定値やtrace plotを見て、chainが別々の"谷"(局所解)に落ちて出られなくなっていないか確認する。
 - **なぜ効くか**: Divergenceは「サンプラーが局所的に破綻したか」を検出する指標であり、「複数のchainが尤度面の異なる谷に別々に収束してしまう」というグローバルな病理(マルチモダリティ)は原理的に検出できない。周期・位相を持つパラメータは特にこの問題を起こしやすい。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#sunspot-周期性を持つ非線形状態空間モデル)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#sunspot-周期性を持つ非線形状態空間モデル)
 
 ---
 
@@ -63,7 +63,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 - **症状**: Divergences=0だがr_hatが高い(例: 1.06)という結果が出たとき、マルチモダリティ(真の多峰性)なのか、単にチェーン長(tune/draws)が足りず各chainがまだ収束しきっていないだけなのか、区別がつかない。
 - **対処**: chainごとの推定値の平均を比較する。近い値に集まっていれば「チェーン長不足」の可能性が高く、tune/drawsを増やして再実行し改善するか確認する。明確に異なる値に分かれていれば真の多峰性を疑う。
 - **なぜ効くか**: マルチモダリティ(chainが別々の谷に落ちる)とチェーン長不足(chainがまだ目標分布に到達していない)は、どちらもr_hatを悪化させるが、原因も対処法も全く異なる。chain別の平均値という一手間の確認だけで、この2つを高い精度で切り分けられる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#日経225-stochastic-volatility)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility)
 
 ---
 
@@ -72,7 +72,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 - **症状**: Divergenceが発生しているが、それが構造的な非識別性(funnel等)によるものか、単にステップサイズがギリギリ足りていないだけなのか、対処の前に判断がつかない。
 - **対処**: divergent pointsがパラメータ空間のどこに現れているかを確認する。特定の隅・境界に局所集中していれば構造的な非識別性・funnelを示唆し、事後分布の主要な塊全体に薄く分散していれば単なるステップサイズ不足の可能性が高く、tune増加などで解消しやすい。
 - **なぜ効くか**: 両者は同じ「divergence数」という指標に現れるが、原因も対処法(モデルの再パラメータ化 vs サンプラー設定の調整)も異なる。分布パターンという追加情報を見ることで、無駄な対処(構造的でない問題にモデル変更で挑む、あるいはその逆)を避けられる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#lynx-非線形状態空間モデル)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#lynx-非線形状態空間モデル)
 
 ---
 
@@ -81,7 +81,7 @@ r_hat/ESS/divergenceをどう読むか、原因不明のサンプリング異常
 - **症状**: 離散変数(変化点の位置`tau`など)のESSだけが、他の連続変数より1桁近く低くなる。
 - **対処**: 可能であれば、離散変数を連続変数に緩和する(例: `switch`関数による離散的な切り替えを、シグモイド関数による滑らかな遷移に置き換え、`tau`自体を連続変数として扱う)ことでNUTSのみでサンプリング可能にする。
 - **なぜ効くか**: PyMCは離散変数に対して自動的にMetropolis法を、連続変数にはNUTSを割り当てるCompound Stepを使う。Metropolisはランダムウォーク的な提案のため自己相関が強く、同じサンプル数でも実効サンプルサイズ(ESS)が少なくなる。ただし連続緩和は新たなパラメータ(遷移の急さ等)を導入することが多く、それがfunnel等の新しい病理を生まないか別途確認が必要になる([reparameterization.md](reparameterization.md)参照)。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#nile川-ベイズ変化点分析)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#nile川-ベイズ変化点分析)
 
 ---
 

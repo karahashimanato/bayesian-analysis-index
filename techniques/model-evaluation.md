@@ -72,7 +72,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 - **症状**: Posterior Predictive Check(観測値が予測区間に収まる、分布形状が一致する)の結果が良好でも、それがモデルの構造(パラメータの意味する機構)が現象を正しく説明していることの証明にはならない場合がある。特に潜在変数(process noiseなど)が各時点で自由に調整可能なモデルでは、機構部分が何も説明していなくても、潜在変数側が観測値に「帳尻合わせ」して見かけ上良好なPPCを作れてしまう。
 - **対処**: 潜在変数(process noise等)を使わず、構造パラメータの事後サンプルのみで決定論的にモデルを走らせるforward simulationを行い、実データの主要な特徴(周期性など)を再現できるか検証する。
 - **なぜ効くか**: PPCは「観測値と整合する予測ができるか」しか検証しない。自由度の高い潜在変数がある場合、その整合性はモデル構造の正しさではなく潜在変数の柔軟性に由来しうる。潜在変数を封じた状態での検証によって、初めて「機構による説明」と「自由度による帳尻合わせ」を区別できる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#lynx-非線形状態空間モデル)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#lynx-非線形状態空間モデル)
 
 ---
 
@@ -81,7 +81,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 - **症状**: モデルに追加したパラメータ(leverage effectの$\rho$など)が統計的に明確な値(信用区間が0を含まない)を示したため、それによって当初解決したかった問題(ACFのギャップなど)も解決したと判断してしまう。
 - **対処**: パラメータの有意性(事後分布が0を含まないか)と、当初の診断で見つかった具体的な問題(可視化・診断指標の特定のギャップ)が実際に解消したかを、別々に確認する。
 - **なぜ効くか**: あるパラメータの追加がモデルの当てはまりを何らかの意味で改善させることと、分析者が狙っていた特定の現象を説明できるようになることは、必ずしも同じではない。前者だけを見て満足すると、本当の問題を見過ごしたまま「改善した」と誤認する。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#日経225-stochastic-volatility)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility)
 
 ---
 
@@ -90,4 +90,4 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 - **症状**: モデルがきれいに収束し、パラメータが明確な値(高い集中度など)を示すと、それをそのまま「当初期待していた知見の発見」として報告してしまう。
 - **対処**: 分析の最後に「この分析で証明できたことは何か」「証明できていないことは何か」を切り分けて明示する。データソースの限界(非公式、小サンプルなど)も含めて検討し、実際の位置づけ(例: 新しい知見の発見ではなく、モデルが既知の性質を正しく検出できることのsanity check)を正直に評価する。
 - **なぜ効くか**: 「モデルが健全に収束したこと」「パラメータが明確な値を示したこと」は、分析の入り口が意図した問いに答えられたことを保証しない。結果の解釈自体を批判的に検討する工程を挟むことで、過大な主張を避けられる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#ポケモンカード封入率-階層ベイズdirichlet-multinomial)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#ポケモンカード封入率-階層ベイズdirichlet-multinomial)

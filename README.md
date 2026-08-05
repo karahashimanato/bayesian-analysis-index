@@ -39,7 +39,7 @@
 | [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md) | ベイズ生存時間分析(Telco Customer Churn) | ✅ |
 | [bitcoin-utxo-survival](https://github.com/karahashimanato/bitcoin-utxo-survival/blob/main/README.md) | UTXO滞留時間のベイズ生存時間分析(bayesian-hazard-modelsの延長) | ✅ |
 | [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md) | 多腕バンディット・オフ方策評価、階層ベイズモデル比較 | ✅ |
-| [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md) | ベイズ時系列・階層モデル・点過程の学習ジャーナル(旧markov-regime-switching) | ✅ |
+| [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md) | ベイズ時系列・階層モデル・点過程の学習ジャーナル(旧markov-regime-switching) | ✅ |
 
 ## 運用ルール
 

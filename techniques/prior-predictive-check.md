@@ -27,7 +27,7 @@
 - **症状**: prior predictiveの最大値が現実離れした値(数百〜数千倍)に暴走する。SVモデルの$\sigma_\eta^2/(1-\phi^2)$、Gamma-Poisson階層モデルの$\mu^2/\alpha_{conc}$、Hawkes過程の減衰項$e^{-\beta\cdot dt}$($\beta\to0$で減衰が機能しなくなる)など、形は違うが「あるパラメータが0に近づくと分散・強度が発散する」という同型の構造が、独立した3つのモデルクラスで繰り返し発生した。
 - **対処**: 分散が発散しうるパラメータの事前分布を、0付近の密度がゼロになる分布族(`Exponential`ではなく`Gamma(alpha>1, ...)`など)に変更する構造的対処を優先する。平均を動かす対症療法(スケールを緩める)より、分布の形自体を変える方が極端な裾を強く抑制できる。
 - **なぜ効くか**: `Exponential`は0付近に確率密度の山を持つため、分母に来るパラメータとして使うと一定確率で分散爆発を引き起こす。`Gamma(shape>1)`は0での密度がゼロになるため、この経路を構造的に塞げる。一方Dirichlet-Multinomialのように「配分先の合計が固定されている」構造では、集中度パラメータが0に近づいても総量自体は上限を超えられないため、同型の発散がそもそも起こらない。「総量が固定か青天井か」を先に見抜けると、prior predictive checkの労力を節約できる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#横断的な学び)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#横断的な学び)
 
 ---
 
@@ -36,7 +36,7 @@
 - **症状**: 1つのパラメータの事前分布を構造的に対処(0付近の密度をゼロにする分布へ変更)しても、prior predictiveの最大値がまだ大きい(例: 5880→3639)。
 - **対処**: 残った暴走の原因を、単一パラメータの事前分布をさらに締めることで済ませず、複数パラメータ間のペアプロット(散布図)で診断し直し、暴走の主犯が別のパラメータに移っていないか確認する。移っていれば、そのパラメータにも同じ構造的対処を適用する。
 - **なぜ効くか**: 複数パラメータが絡んで分散・強度を決める構造(Hawkes過程の$\kappa$と$\beta$など)では、1つを対処しても残りのパラメータが同じ役割を引き継いで暴走を再現することがある。単発の修正で終わらせず、都度診断し直すことで真に構造的な解決に到達できる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
 
 ---
 

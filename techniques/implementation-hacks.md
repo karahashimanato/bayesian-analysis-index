@@ -74,7 +74,7 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 
 - **症状**: `pm.GaussianRandomWalk("x", sigma=..., shape=n)`で、`n`が127を超えると`OverflowError: Python integer ... out of bounds for int8`が発生する。
 - **対処**: `shape`引数を使わず、`steps`と`init_dist`を明示的に指定する(`pm.GaussianRandomWalk("x", sigma=..., init_dist=pm.Normal.dist(0,1), steps=n-1)`)。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#sunspot-周期性を持つ非線形状態空間モデル)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#sunspot-周期性を持つ非線形状態空間モデル)
 
 ---
 
@@ -83,7 +83,7 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 - **症状**: 「平均・集中度」への再パラメータ化(`mu`, `alpha_conc`)をGamma分布に適用したいが、PyMCの`pm.Gamma`は`(alpha,beta)`または`(mu,sigma)`の組み合わせしか受け付けず、`(mu, alpha)`を直接指定できない。
 - **対処**: `beta = alpha_conc / mu`という関係式を`pm.Deterministic`で明示的に計算してから、`pm.Gamma(alpha=alpha_conc, beta=beta)`という受理される形に変換する。
 - **なぜ効くか**: 分布のパラメータ化(数式上の自然な表現)とライブラリが受け付ける引数の組み合わせは必ずしも一致しない。`Deterministic`を挟むことで、モデル記述上は好きなパラメータ化を保ちながら、実装上の制約を吸収できる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#サメ襲撃件数-階層ベイズgamma-poisson)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#サメ襲撃件数-階層ベイズgamma-poisson)
 
 ---
 
@@ -92,7 +92,7 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 - **症状**: 点過程モデル(Hawkes過程など)で、各イベントが過去の全イベントから受ける影響を計算する必要があり、素朴に実装すると逐次ループ(`pytensor.scan`)が必要に見える。
 - **対処**: `dt = t[:, None] - t[None, :]`のように全イベントペアの時間差を表す$T\times T$行列を作り、`dt > 0`のマスクで「自分より前に起きたイベントだけ」を抽出、`pt.switch`で条件付き計算を行うことで、`scan`を使わずベクトル演算のみでモデルを構築する。
 - **なぜ効くか**: `pytensor.scan`は逐次処理のオーバーヘッドがあり、微分やコンパイルの面でもベクトル化された演算より扱いにくい場合がある。ペアワイズな時間差計算は行列演算に落とし込めるため、スケールしやすいベクトル化実装が可能になる。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/markov-regime-switching/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
 
 ---
 
