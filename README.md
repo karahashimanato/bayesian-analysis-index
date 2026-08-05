@@ -37,6 +37,7 @@
 | カテゴリ | 内容 |
 |---|---|
 | [評価指標・推定量](tools/evaluation-metrics.md) | LOO/AUC-ROC/Brier Score/C-indexなどのモデル比較指標、IPS/DM/DR/SNIPS/SNDRなどのOPE推定量の定義と使い分け |
+| [観測モデル・尤度分布](tools/observation-models.md) | Poisson/Beta-Binomial/Gamma-Poisson/Dirichlet-Multinomialなどの分布族、Weibull/Piecewise Exponentialなどのハザードモデル、Hawkes過程・forward algorithmの定義と使い分け |
 
 ## 対象プロジェクト
 
