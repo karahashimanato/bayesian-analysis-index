@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
 
-from plot_style import COLOR_ALT, COLOR_OK, apply_style
+from plot_style import COLOR_ALT, COLOR_DIVERGENT, COLOR_OK, apply_style
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "observation-models"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -153,6 +153,73 @@ def plot_gamma_poisson_overdispersion():
           f"Gamma-Poisson 95%PI=[{lo_gp:.0f},{hi_gp:.0f}] coverage={coverage_gp*100:.0f}%)")
 
 
+def plot_normal_vs_studentt_robustness():
+    """外れ値を含む連続データに対し、Normal観測分布の回帰は外れ値に
+    回帰直線が引っ張られるが、Student-t観測分布(裾が重い)は外れ値の
+    影響を大きく受けずに真の傾きに近い推定を保つことを示す。"""
+
+    rng = np.random.default_rng(6)
+    n = 60
+    true_slope, true_intercept = 1.2, 0.0
+    x = rng.uniform(-3, 3, n)
+    y = true_intercept + true_slope * x + rng.normal(0, 0.6, n)
+
+    # 高レバレッジ(xが大きい)側に、一貫して下方向へ外れる外れ値を配置する
+    # (ランダムな符号だと線形回帰の傾きへの影響が平均的に打ち消し合うため)
+    n_outliers = 5
+    outlier_idx = np.argsort(x)[-n_outliers:]
+    y[outlier_idx] = (true_intercept + true_slope * x[outlier_idx]) - rng.uniform(9, 12, n_outliers)
+
+    with pm.Model():
+        b0 = pm.Normal("b0", 0, 5)
+        b1 = pm.Normal("b1", 0, 5)
+        sigma = pm.HalfNormal("sigma", 5)
+        pm.Normal("y", mu=b0 + b1 * x, sigma=sigma, observed=y)
+        idata_normal = pm.sample(2000, tune=1000, chains=4, target_accept=0.9,
+                                  random_seed=1, progressbar=False,
+                                  compute_convergence_checks=False)
+
+    with pm.Model():
+        b0 = pm.Normal("b0", 0, 5)
+        b1 = pm.Normal("b1", 0, 5)
+        sigma = pm.HalfNormal("sigma", 5)
+        nu = pm.Gamma("nu", alpha=2, beta=0.1)  # 自由度(小さいほど裾が重い)
+        pm.StudentT("y", mu=b0 + b1 * x, sigma=sigma, nu=nu, observed=y)
+        idata_t = pm.sample(2000, tune=1000, chains=4, target_accept=0.9,
+                             random_seed=1, progressbar=False,
+                             compute_convergence_checks=False)
+
+    b0_n, b1_n = float(idata_normal.posterior["b0"].mean()), float(idata_normal.posterior["b1"].mean())
+    b0_t, b1_t = float(idata_t.posterior["b0"].mean()), float(idata_t.posterior["b1"].mean())
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    is_outlier = np.zeros(n, dtype=bool)
+    is_outlier[outlier_idx] = True
+    ax.scatter(x[~is_outlier], y[~is_outlier], color="gray", s=25, alpha=0.7, label="通常のデータ")
+    ax.scatter(x[is_outlier], y[is_outlier], color=COLOR_DIVERGENT, s=45, marker="x",
+               label="外れ値")
+
+    x_grid = np.linspace(-3, 3, 100)
+    ax.plot(x_grid, true_intercept + true_slope * x_grid, color="black", lw=1.3, ls="--",
+            label=f"真の直線(傾き={true_slope})")
+    ax.plot(x_grid, b0_n + b1_n * x_grid, color=COLOR_DIVERGENT, lw=2,
+            label=f"Normal観測分布(傾き={b1_n:.3f})")
+    ax.plot(x_grid, b0_t + b1_t * x_grid, color=COLOR_OK, lw=2,
+            label=f"Student-t観測分布(傾き={b1_t:.3f})")
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_title(f"外れ値({n_outliers}/{n}件)に対しNormalは回帰直線が引っ張られるが\n"
+                 f"Student-tは真の傾き({true_slope})に近い推定を保つ")
+    ax.legend(fontsize=8.5, loc="upper left")
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "normal_vs_studentt_robustness.png")
+    plt.close(fig)
+
+    print(f"normal_vs_studentt_robustness.png saved "
+          f"(真の傾き={true_slope}, Normal推定={b1_n:.3f}, Student-t推定={b1_t:.3f})")
+
+
 if __name__ == "__main__":
     plot_beta_binomial_shrinkage()
     plot_gamma_poisson_overdispersion()
+    plot_normal_vs_studentt_robustness()

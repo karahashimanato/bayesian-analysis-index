@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
 
-from plot_style import COLOR_ALT, COLOR_OK, apply_style
+from plot_style import COLOR_ALT, COLOR_DIVERGENT, COLOR_OK, apply_style
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "model-evaluation"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -84,5 +84,190 @@ def plot_cumulative_effect_variance_growth():
           f"sigma_level posterior mean={sigma_mean:.3f})")
 
 
+def c_index(risk_score, event_time):
+    """打ち切りなしの単純なconcordance index(全ペアのtotal order)。"""
+    n = len(event_time)
+    concordant = 0.0
+    comparable = 0
+    for i in range(n):
+        for j in range(i + 1, n):
+            if event_time[i] == event_time[j]:
+                continue
+            comparable += 1
+            earlier = i if event_time[i] < event_time[j] else j
+            later = j if earlier == i else i
+            if risk_score[earlier] > risk_score[later]:
+                concordant += 1
+            elif risk_score[earlier] == risk_score[later]:
+                concordant += 0.5
+    return concordant / comparable
+
+
+def brier_score(surv_prob, event_time, t_eval):
+    observed = (event_time > t_eval).astype(float)
+    return np.mean((surv_prob - observed) ** 2)
+
+
+def plot_cindex_brier_independence():
+    """共変量なし(基準ハザードのみ)/共変量ありの2つのベイズ指数分布ハザード
+    モデルをフィットし、共変量追加でC-index(順位付け)は明確に改善するが
+    Brier Score(較正)はほとんど変わらないことを示す。"""
+
+    rng = np.random.default_rng(5)
+    n_total = 320
+    lambda0 = 0.05
+    beta_true = 0.25
+
+    x = rng.normal(0, 1, n_total)
+    lam = lambda0 * np.exp(beta_true * x)
+    T = rng.exponential(1 / lam)
+
+    n_train = 220
+    x_train, x_test = x[:n_train], x[n_train:]
+    T_train, T_test = T[:n_train], T[n_train:]
+
+    with pm.Model():
+        log_lam0 = pm.Normal("log_lam0", np.log(0.05), 1.0)
+        lam_i = pm.math.exp(log_lam0)
+        pm.Exponential("T", lam=lam_i, observed=T_train)
+        idata_a = pm.sample(2000, tune=1000, chains=4, target_accept=0.9,
+                             random_seed=1, progressbar=False,
+                             compute_convergence_checks=False)
+
+    with pm.Model():
+        log_lam0 = pm.Normal("log_lam0", np.log(0.05), 1.0)
+        beta = pm.Normal("beta", 0, 1.0)
+        lam_i = pm.math.exp(log_lam0 + beta * x_train)
+        pm.Exponential("T", lam=lam_i, observed=T_train)
+        idata_b = pm.sample(2000, tune=1000, chains=4, target_accept=0.9,
+                             random_seed=1, progressbar=False,
+                             compute_convergence_checks=False)
+
+    lam0_a = float(idata_a.posterior["log_lam0"].mean())
+    lam0_b = float(idata_b.posterior["log_lam0"].mean())
+    beta_b = float(idata_b.posterior["beta"].mean())
+
+    risk_a = np.full(len(x_test), np.exp(lam0_a))
+    risk_b = np.exp(lam0_b + beta_b * x_test)
+
+    t_eval = np.median(T_train)
+    surv_a = np.exp(-risk_a * t_eval)
+    surv_b = np.exp(-risk_b * t_eval)
+
+    cidx_a = c_index(risk_a, T_test)
+    cidx_b = c_index(risk_b, T_test)
+    brier_a = brier_score(surv_a, T_test, t_eval)
+    brier_b = brier_score(surv_b, T_test, t_eval)
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+    labels = ["共変量なし\n(基準ハザードのみ)", "共変量あり\n(x込みのハザード比)"]
+    x_pos = np.arange(2)
+
+    b1 = axes[0].bar(x_pos, [cidx_a, cidx_b], color=[COLOR_DIVERGENT, COLOR_OK], width=0.5)
+    for rect, val in zip(b1, [cidx_a, cidx_b]):
+        axes[0].annotate(f"{val:.3f}", (rect.get_x() + rect.get_width() / 2, val),
+                          xytext=(0, 4), textcoords="offset points", ha="center", fontsize=10)
+    axes[0].axhline(0.5, color="black", lw=1, ls="--", label="ランダム(0.5)")
+    axes[0].set_xticks(x_pos)
+    axes[0].set_xticklabels(labels, fontsize=9)
+    axes[0].set_ylabel("C-index")
+    axes[0].set_ylim(0.4, max(cidx_a, cidx_b) + 0.1)
+    axes[0].set_title("順位付け精度は共変量追加で明確に改善")
+    axes[0].legend(fontsize=8)
+
+    b2 = axes[1].bar(x_pos, [brier_a, brier_b], color=[COLOR_DIVERGENT, COLOR_OK], width=0.5)
+    for rect, val in zip(b2, [brier_a, brier_b]):
+        axes[1].annotate(f"{val:.4f}", (rect.get_x() + rect.get_width() / 2, val),
+                          xytext=(0, 4), textcoords="offset points", ha="center", fontsize=10)
+    axes[1].set_xticks(x_pos)
+    axes[1].set_xticklabels(labels, fontsize=9)
+    axes[1].set_ylabel(f"Brier Score (t={t_eval:.1f})")
+    axes[1].set_ylim(0, max(brier_a, brier_b) * 1.3)
+    axes[1].set_title("Brierの改善幅はC-indexほど劇的ではない")
+
+    fig.suptitle("C-indexとBrier Scoreは独立の問題を測る", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(OUT_DIR / "cindex_brier_independence.png")
+    plt.close(fig)
+
+    print(f"cindex_brier_independence.png saved "
+          f"(C-index: {cidx_a:.3f}->{cidx_b:.3f}, Brier: {brier_a:.4f}->{brier_b:.4f})")
+
+
+def plot_placebo_false_positive_rate():
+    """真の効果がないデータに対し、架空の介入日(プラセボ)を多数設定して
+    ベイズ的な検定(95%信用区間が0を含まないか)を繰り返し、単一のプラセボ
+    試行だけでは偽陽性率(理論値5%)を判断できないことを示す。"""
+
+    rng = np.random.default_rng(9)
+    n_placebo = 60
+    n_per_test = 40
+    true_effect = 0.0
+
+    detections = np.zeros(n_placebo, dtype=bool)
+    lo_all = np.zeros(n_placebo)
+    hi_all = np.zeros(n_placebo)
+    mean_all = np.zeros(n_placebo)
+    for k in range(n_placebo):
+        y = rng.normal(true_effect, 1.0, n_per_test)
+        with pm.Model():
+            mu = pm.Normal("mu", 0, 2)
+            sigma = pm.HalfNormal("sigma", 2)
+            pm.Normal("y", mu=mu, sigma=sigma, observed=y)
+            idata = pm.sample(1000, tune=800, chains=2, target_accept=0.9,
+                               random_seed=100 + k, progressbar=False,
+                               compute_convergence_checks=False)
+        mu_draws = idata.posterior["mu"].values.flatten()
+        lo, hi = np.percentile(mu_draws, [2.5, 97.5])
+        lo_all[k], hi_all[k], mean_all[k] = lo, hi, mu_draws.mean()
+        detections[k] = not (lo <= 0 <= hi)  # 95%信用区間が0を含まない = 誤検出
+
+    observed_fp_count = detections.sum()
+    observed_fp_rate = observed_fp_count / n_placebo
+
+    # 理論上の偽陽性率5%の下で、n_placebo回中k回検出される確率(二項分布)
+    from scipy import stats
+    k_range = np.arange(0, n_placebo + 1)
+    binom_pmf = stats.binom.pmf(k_range, n_placebo, 0.05)
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5.5))
+
+    order = np.arange(n_placebo)
+    colors = np.where(detections, COLOR_DIVERGENT, COLOR_OK)
+    for k in order:
+        axes[0].plot([lo_all[k], hi_all[k]], [k, k], color=colors[k], lw=1.3, alpha=0.8)
+        axes[0].plot(mean_all[k], k, "o", color=colors[k], ms=2.5)
+    axes[0].axvline(0, color="black", lw=1, ls="--", label="効果なし(真値=0)")
+    axes[0].axhline(-0.5, color=COLOR_DIVERGENT, lw=0, label="")  # ダミー(凡例間隔調整用)
+    axes[0].plot([], [], color=COLOR_DIVERGENT, lw=1.5, label="誤検出(95%CIが0を含まない)")
+    axes[0].plot([], [], color=COLOR_OK, lw=1.5, label="正しく非有意")
+    axes[0].set_xlabel("推定された効果(muの95%信用区間)")
+    axes[0].set_ylabel("プラセボ試行 番号")
+    axes[0].set_title(f"1回目の試行だけを見ても正しく非有意({'誤検出' if detections[0] else '正しい'})\n"
+                       f"だが、それが偶然か理論通りかは複数回見ないと分からない")
+    axes[0].legend(fontsize=8, loc="upper right")
+
+    axes[1].bar(k_range, binom_pmf, color=COLOR_ALT, alpha=0.6,
+                label=f"理論分布 Binomial(n={n_placebo}, p=0.05)")
+    axes[1].axvline(observed_fp_count, color=COLOR_DIVERGENT, lw=2,
+                     label=f"実測: {n_placebo}回中{observed_fp_count}回誤検出 ({observed_fp_rate:.1%})")
+    axes[1].set_xlabel("誤検出(有意)となった回数")
+    axes[1].set_ylabel("確率")
+    axes[1].set_xlim(-0.5, 12)
+    axes[1].set_title(f"{n_placebo}回繰り返して初めて\n偽陽性率が理論値と整合するか判断できる")
+    axes[1].legend(fontsize=8)
+
+    fig.suptitle("プラセボ検定は1回では偽陽性率を測れない", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(OUT_DIR / "placebo_false_positive_rate.png")
+    plt.close(fig)
+
+    print(f"placebo_false_positive_rate.png saved "
+          f"(n_placebo={n_placebo}, 観測誤検出={observed_fp_count}回={observed_fp_rate:.1%}, "
+          f"1回目の結果={'誤検出' if detections[0] else '正しく非有意'})")
+
+
 if __name__ == "__main__":
     plot_cumulative_effect_variance_growth()
+    plot_cindex_brier_independence()
+    plot_placebo_false_positive_rate()

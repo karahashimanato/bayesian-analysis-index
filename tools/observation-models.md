@@ -59,6 +59,10 @@
 
 ### Normal / Student-t(観測分布)
 
+![外れ値(5/60件、高レバレッジ側に一貫して下方へ外れる)に対しNormal観測分布は回帰直線が大きく引っ張られ推定傾きが真値1.2から0.537まで崩れるが、Student-t観測分布は真の傾きに近い1.220を保つ](../assets/observation-models/normal_vs_studentt_robustness.png)
+
+*PyMCで実際にNormal回帰とStudent-t回帰(自由度νも推定)をフィットし比較した結果(生成スクリプト: [scripts/generate_observation_models_plots.py](../scripts/generate_observation_models_plots.py))。*
+
 - **定義**: 連続値の観測データをモデル化する基本分布。Normalは正規分布、Student-tは自由度パラメータ`ν`を持ち、Normalより裾が重い(外れ値に頑健な)分布。
 - **数式・仕組み**: Student-tは`ν→∞`でNormalに収束する。金融時系列のようにファットテール(急激な変動)を持つデータでは、Normal観測分布だと外れ値の影響を過大評価してしまう。
 - **使い分け**: 残差やリターンの分布が正規分布より裾が重いと疑われる場合はStudent-tを試す。ただし、裾の重さを変えるだけでは解決しない構造的な問題(モデルの表現力不足など)もあり、Student-tへの変更だけで狙った現象(ACFのギャップなど)が解消するとは限らない([techniques/model-evaluation.md](../techniques/model-evaluation.md#有意なパラメータと狙っていた問題の解決は別軸で検証する)参照)。

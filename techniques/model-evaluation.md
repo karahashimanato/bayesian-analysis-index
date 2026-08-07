@@ -15,6 +15,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### C-indexとBrier Scoreは独立の問題を測る
 
+![C-indexとBrier Scoreは独立の問題を測る: 共変量なし(基準ハザードのみ)モデルはC-index=0.500(ランダム)だが、共変量ありモデルはC-index=0.624まで明確に改善する。一方Brier Scoreは0.2501→0.2320とC-indexほど劇的には改善しない](../assets/model-evaluation/cindex_brier_independence.png)
+
+*PyMCで実際に2種類のベイズ指数分布ハザードモデル(共変量なし/共変量あり)をフィットし、ホールドアウトデータでC-indexとBrier Scoreを計算した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: 「順位付け(誰が先にイベントを迎えるか)」の指標(C-index)が改善したことをもって、「確率の絶対値」の較正(Brier Score)も改善したと誤解する。
 - **対処**: 両指標を別々に確認する。C-indexが `0.767→0.798` と向上しても、Brier Scoreは `0.104→0.101` とほぼ変化しないことがある。
 - **なぜ効くか**: 順位付けの正しさと確率較正の正しさは数学的に独立な性質であり、一方の改善がもう一方を保証しない。各指標そのものの定義は[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#c-index-time-dependent-auc)を参照。
@@ -99,6 +103,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### プラセボ検定は1回では偽陽性率を測れない
+
+![プラセボ検定は1回では偽陽性率を測れない: 真の効果がないデータに架空の介入日を60回設定してベイズ検定を繰り返すと、95%信用区間が0を含まない誤検出は60回中2回(3.3%)で理論値5%と整合するが、1回目の試行だけを見ても正しく非有意という結果しか分からず、それが偶然か理論通りかは判断できない](../assets/model-evaluation/placebo_false_positive_rate.png)
+
+*PyMCで実際にベイズ平均推定モデルを60回フィットし、各回の95%信用区間が0を含むかを判定した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: time placebo(架空の介入日での検定)を1つの日付だけで行い「有意な効果は検出されなかった」ことをもって手法の頑健性を確認したつもりになっていたが、95%信用区間による判定は理論上5%の確率で誤検出するはずであり、1回の試行だけでは「本当に頑健なのか」「たまたま外れなかっただけか」を統計的に区別できない。
 - **対処**: 架空の介入日を複数(例: 8つ)設定して繰り返し、実測の偽陽性率を集計する。得られた偽陽性率が理論値(5%)と統計的に矛盾しないか(二項分布で`P(検出回数≥observed)`を計算するなど)を確認する。

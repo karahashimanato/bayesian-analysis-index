@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
 
-from plot_style import COLOR_ALT, COLOR_DIVERGENT, COLOR_OK, apply_style
+from plot_style import COLOR_ALT, COLOR_CHAIN, COLOR_DIVERGENT, COLOR_OK, apply_style
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "evaluation-metrics"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -189,6 +189,99 @@ def plot_brier_auc_independence():
           f"定数: AUC={auc_const:.3f} Brier={brier_const:.3f})")
 
 
+def plot_ope_bias_variance_tradeoff():
+    """IPS/SNIPS/DM/DRの4つのOPE推定量について、ログデータからのシミュレーション
+    を繰り返し、真の方策価値のまわりでのバイアス・分散のトレードオフを比較する。
+    DMの報酬モデルは意図的に誤設定(非単調な真の報酬をarm indexへの線形回帰で
+    近似)し、DMがバイアスを持つ一方、DRがそのバイアスを補正できることを示す。"""
+
+    rng = np.random.default_rng(11)
+    n_arms = 4
+    p_true = np.array([0.10, 0.15, 0.45, 0.20])  # 非単調(arm2が突出)
+    pi_b = np.full(n_arms, 0.25)
+    pi_e = np.array([0.05, 0.10, 0.70, 0.15])
+    v_true = float(np.sum(pi_e * p_true))
+
+    n_reps = 60
+    n_log = 400
+    arm_idx_all = np.arange(n_arms)
+
+    v_ips = np.zeros(n_reps)
+    v_snips = np.zeros(n_reps)
+    v_dm = np.zeros(n_reps)
+    v_dr = np.zeros(n_reps)
+
+    for k in range(n_reps):
+        rng_k = np.random.default_rng(1000 + k)
+        actions = rng_k.choice(n_arms, size=n_log, p=pi_b)
+        rewards = rng_k.binomial(1, p_true[actions]).astype(float)
+
+        w = pi_e[actions] / pi_b[actions]
+        v_ips[k] = np.mean(w * rewards)
+        v_snips[k] = np.sum(w * rewards) / np.sum(w)
+
+        with pm.Model():
+            b0 = pm.Normal("b0", 0.3, 0.5)
+            b1 = pm.Normal("b1", 0, 0.5)
+            sigma = pm.HalfNormal("sigma", 0.5)
+            mu = b0 + b1 * actions
+            pm.Normal("y", mu=mu, sigma=sigma, observed=rewards)
+            idata = pm.sample(500, tune=500, chains=2, target_accept=0.9,
+                               random_seed=k, progressbar=False,
+                               compute_convergence_checks=False)
+        b0_hat = float(idata.posterior["b0"].mean())
+        b1_hat = float(idata.posterior["b1"].mean())
+        r_hat_per_arm = b0_hat + b1_hat * arm_idx_all
+        r_hat_actions = b0_hat + b1_hat * actions
+
+        v_dm[k] = np.sum(pi_e * r_hat_per_arm)
+        v_dr[k] = v_dm[k] + np.mean(w * (rewards - r_hat_actions))
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5.5))
+
+    estimators = [("IPS", v_ips, COLOR_CHAIN[0]), ("SNIPS", v_snips, COLOR_CHAIN[1]),
+                  ("DM\n(誤設定あり)", v_dm, COLOR_DIVERGENT), ("DR", v_dr, COLOR_OK)]
+    positions = np.arange(len(estimators))
+    bp = axes[0].boxplot([e[1] for e in estimators], positions=positions, widths=0.6,
+                          patch_artist=True, showmeans=True)
+    for patch, (_, _, color) in zip(bp["boxes"], estimators):
+        patch.set_facecolor(color)
+        patch.set_alpha(0.5)
+    axes[0].axhline(v_true, color="black", lw=1.3, ls="--", label=f"真の方策価値={v_true:.3f}")
+    axes[0].set_xticks(positions)
+    axes[0].set_xticklabels([e[0] for e in estimators], fontsize=9)
+    axes[0].set_ylabel("推定された方策価値")
+    axes[0].set_title(f"{n_reps}回のログ再サンプリングでの推定値分布")
+    axes[0].legend(fontsize=8)
+
+    bias = [np.mean(e[1]) - v_true for e in estimators]
+    std = [np.std(e[1]) for e in estimators]
+    axes[1].bar(positions - 0.15, bias, width=0.3, color=[e[2] for e in estimators],
+                alpha=0.9, label="バイアス(平均-真値)")
+    ax2 = axes[1].twinx()
+    ax2.bar(positions + 0.15, std, width=0.3, color=[e[2] for e in estimators],
+            alpha=0.4, hatch="//", label="標準偏差")
+    axes[1].axhline(0, color="black", lw=0.8)
+    axes[1].set_xticks(positions)
+    axes[1].set_xticklabels([e[0] for e in estimators], fontsize=9)
+    axes[1].set_ylabel("バイアス(平均-真値)")
+    ax2.set_ylabel("標準偏差")
+    axes[1].set_title("バイアス(塗り)と分散(斜線)のトレードオフ")
+    lines1, labels1 = axes[1].get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    axes[1].legend(lines1 + lines2, labels1 + labels2, fontsize=8, loc="upper right")
+
+    fig.suptitle("OPE推定量のバイアス・分散トレードオフ(IPS/SNIPS/DM/DR)", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT_DIR / "ope_bias_variance_tradeoff.png")
+    plt.close(fig)
+
+    print(f"ope_bias_variance_tradeoff.png saved (真値={v_true:.3f})")
+    for name, v, _ in estimators:
+        print(f"  {name.strip()}: mean={v.mean():.4f} bias={v.mean()-v_true:+.4f} std={v.std():.4f}")
+
+
 if __name__ == "__main__":
     plot_loo_elpd_diff()
     plot_brier_auc_independence()
+    plot_ope_bias_variance_tradeoff()

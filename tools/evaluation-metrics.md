@@ -41,6 +41,10 @@
 
 ### C-index (+ Time-Dependent AUC)
 
+![C-indexとBrier Scoreは独立の問題を測る: 共変量なし(基準ハザードのみ)モデルはC-index=0.500(ランダム)だが、共変量ありモデルはC-index=0.624まで明確に改善する。一方Brier Scoreは0.2501→0.2320とC-indexほど劇的には改善しない](../assets/model-evaluation/cindex_brier_independence.png)
+
+*PyMCで実際に2種類のベイズ指数分布ハザードモデル(共変量なし/共変量あり)をフィットし、ホールドアウトデータでC-indexとBrier Scoreを計算した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **定義**: 生存時間分析における順位付け精度の指標。AUC-ROCの生存時間版に相当し、「実際に先にイベント(解約など)を迎えた対象を、モデルが正しく『よりリスクが高い』と予測できたか」をペアごとに評価する。
 - **数式・仕組み**: 比較可能な全ペア(打ち切りの有無からイベント順序が確定できるペア)のうち、予測ハザード比の大小関係と実際のイベント順序が一致した割合。Time-Dependent AUCはこれを時点ごとに計算したもので、経過時間(契約からの月数など)に応じてモデルの識別力がどう変化するかを追える。
 - **使い分け**: 「誰が先にイベントを迎えるか」という順位付けの精度を見たいときに使う。絶対確率の較正を見るには[Brier Score](#brier-score)と併用する必要がある(改善が一致しないことがある)。
@@ -49,6 +53,10 @@
 ---
 
 ### IPS (Inverse Propensity Scoring)
+
+![OPE推定量のバイアス・分散トレードオフ: 意図的に誤設定した報酬モデルを使うDM(真値0.365に対しバイアス-0.115)に対し、IPS(バイアス-0.009、標準偏差0.045)は不偏だが分散が大きく、DR(バイアス-0.008、標準偏差0.037)はDMのバイアスを補正しつつIPSより分散を抑える](../assets/evaluation-metrics/ope_bias_variance_tradeoff.png)
+
+*ログデータ(一様ランダム方策)を60回再サンプリングし、IPS/SNIPS/DM/DRの各推定量で新方策の価値を推定した結果。DMの報酬モデルは非単調な真の報酬をarm indexへの線形回帰(PyMC)で近似する意図的な誤設定(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
 
 - **定義**: オフ方策評価(OPE)において、ログ方策下で観測された報酬を、新方策と旧(ログ収集)方策の選択確率比(傾向スコア比)で重み付けし、新方策を実際に運用した場合の期待報酬を推定する手法。
 - **数式・仕組み**: `V_IPS = (1/n) Σ [π_e(a_i|x_i) / π_b(a_i|x_i)] * r_i`(`π_e`が評価したい新方策、`π_b`がログ収集時の方策=傾向スコア)。
