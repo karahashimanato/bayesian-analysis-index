@@ -6,6 +6,10 @@ funnel・ridge型非識別性・ラベルスイッチング・マルチモダリ
 
 ### Funnel(漏斗状の病理、Neal's funnel)
 
+![Neal's funnel: 中心化パラメータ化ではdivergence(オレンジ)がσの小さい領域に集中するが、非中心化パラメータ化ではdivergenceが解消される](../assets/pathologies/funnel.png)
+
+*PyMCで実際にNUTSサンプリングした結果(中心化: 1017/8000 divergence、非中心化: 0/8000 divergence、生成スクリプト: [scripts/generate_pathology_plots.py](../scripts/generate_pathology_plots.py))。*
+
 - **定義**: 階層モデルで、グループ間のばらつきを表すスケールパラメータ(σ)が0に近づくにつれて、個々のグループ効果の事後分布が急激に細くなる(漏斗状になる)幾何学的病理。中心化パラメータ化(グループ効果を「全体平均+誤差」として直接表現する)の階層モデルで典型的に発生する。
 - **数式・仕組み**: 階層モデル`θ_i ~ Normal(μ, σ)`を中心化パラメータ化のまま素朴にサンプリングすると、σが小さい領域では`θ_i`の事後分布の幅も比例して狭くなる。この「入口が広く出口が狭い漏斗」のような曲率の急激な変化に、固定的なステップサイズを持つHMC/NUTSは対応できず、[divergence](mcmc-diagnostics.md#divergence発散)を起こす。
 - **使い分け**: 非中心化パラメータ化(`θ_i = μ + σ * offset_i`、`offset_i ~ Normal(0,1)`)に書き換えると、σと`θ_i`の依存関係がモデルの外(deterministic変換)に押し出され、サンプラーは常に滑らかな標準正規空間だけを探索すればよくなる。`target_accept`引き上げや事前分布への下限追加は対症療法であり、根本対処は非中心化への書き換え([techniques/reparameterization.md](../techniques/reparameterization.md#非中心化パラメータ化non-centered-parameterizationでfunnel問題を回避する)参照)。
@@ -14,6 +18,10 @@ funnel・ridge型非識別性・ラベルスイッチング・マルチモダリ
 ---
 
 ### Ridge型非識別性
+
+![Ridge型非識別性: κとβの事後サンプルがκ+β=一定の直線上に強く相関して並ぶ](../assets/pathologies/ridge.png)
+
+*PyMCで実際にNUTSサンプリングした結果(κとβの相関係数: -1.000、生成スクリプト: [scripts/generate_pathology_plots.py](../scripts/generate_pathology_plots.py))。*
 
 - **定義**: 2つ以上のパラメータが、互いに打ち消し合う/補い合う形で尤度にほぼ同じ影響を与えるため、事後分布のペアプロットに(円形の等高線ではなく)斜めに伸びた尾根(ridge)状の強い相関構造が現れる非識別性。
 - **数式・仕組み**: 例えばHawkes過程の`κ`(興奮強度)と`β`(減衰速度)は、指数減衰カーネルを`dt→0`近傍でテイラー展開するとどちらも同じ1次の項として現れ、数式レベルで似た役割を持つ。このため「`κ`を上げて`β`も上げる」方向には尤度がほとんど変化せず、その方向に沿って事後分布が細長く伸びる。
@@ -32,6 +40,10 @@ funnel・ridge型非識別性・ラベルスイッチング・マルチモダリ
 ---
 
 ### マルチモダリティ(多峰性)
+
+![マルチモダリティ: 4chainのうち2chainが位相0.8付近、残り2chainが-5.48付近の別の山にそれぞれ留まり続ける](../assets/pathologies/multimodality.png)
+
+*PyMCで実際にNUTSサンプリングした結果(r_hat=1.74、divergence=0/6000。「divergence=0でも健全とは限らない」ことを示す実例。生成スクリプト: [scripts/generate_pathology_plots.py](../scripts/generate_pathology_plots.py))。*
 
 - **定義**: 事後分布が複数の分離した"山"(峰)を持ち、MCMCのチェーンがそれぞれ別の峰に落ちたまま行き来できなくなる病理。周期性・位相を持つパラメータ(三角関数の極形式など)で特に起こりやすい。
 - **数式・仕組み**: 周期パラメータの候補値がわずかに異なると、長い時系列全体にわたって位相が大きくズレていくため、尤度面に複数の「谷」(局所解)ができやすい。複数チェーンがそれぞれ異なる谷に収束すると、chain間で[r_hat](mcmc-diagnostics.md#r_hatgelman-rubin統計量)が大きく悪化する(例: r_hat=2.10)一方、各チェーン内の局所的な探索自体は健全なため[divergence](mcmc-diagnostics.md#divergence発散)=0のままになる。
