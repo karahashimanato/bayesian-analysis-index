@@ -5,6 +5,11 @@ techniques/prior-predictive-check.md に埋め込む可視化画像を生成す�
 μ²/α_concなど)を、Exponential事前分布とGamma(shape>1)事前分布の
 prior predictiveの違いとして実際にサンプリングして描画する。
 
+「判断基準は極値だけでなく割合・信用区間幅で見る」の実例として、理論上の
+範囲(min/max)が同じ2つのprior predictive分布(Beta(5,5)とBeta(0.3,0.3)を
+同じ[0,1000]にスケール)が、現実的な範囲に入る質量の割合ではどれだけ
+異なるかを比較する。
+
 実行方法:
     source .venv/bin/activate
     python scripts/generate_prior_predictive_plots.py
@@ -76,5 +81,52 @@ def plot_denominator_variance_explosion():
           f"Gamma p99={np.percentile(var_gamma,99):.0f} max={var_gamma.max():.0f})")
 
 
+def plot_extreme_vs_proportion():
+    """理論上の範囲(min/max)が同じでも、現実的な範囲に入る質量の割合は
+    形状次第で大きく異なることを示す。"""
+
+    rng = np.random.default_rng(1)
+    n = 20000
+    scale = 1000.0
+    band_lo, band_hi = 300.0, 700.0
+
+    well = rng.beta(5.0, 5.0, n) * scale       # 中央に集中
+    mis = rng.beta(0.3, 0.3, n) * scale        # 両端(0, 1000)に偏るU字型
+
+    prop_well = np.mean((well >= band_lo) & (well <= band_hi))
+    prop_mis = np.mean((mis >= band_lo) & (mis <= band_hi))
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+
+    bins = np.linspace(0, scale, 60)
+    axes[0].axvspan(band_lo, band_hi, color="gray", alpha=0.15, label="現実的な範囲[300,700]")
+    axes[0].hist(well, bins=bins, alpha=0.6, color=COLOR_OK,
+                 label=f"Beta(5,5)(min={well.min():.0f}, max={well.max():.0f})")
+    axes[0].hist(mis, bins=bins, alpha=0.6, color=COLOR_DIVERGENT,
+                 label=f"Beta(0.3,0.3)(min={mis.min():.0f}, max={mis.max():.0f})")
+    axes[0].set_xlabel("prior predictiveの値")
+    axes[0].set_ylabel("count")
+    axes[0].set_title("理論上の範囲[0,1000]はほぼ同じ")
+    axes[0].legend(loc="upper center", fontsize=8, framealpha=0.9)
+
+    labels = ["Beta(5,5)\n(中央集中)", "Beta(0.3,0.3)\n(両端に偏る)"]
+    props = [prop_well * 100, prop_mis * 100]
+    axes[1].bar(labels, props, color=[COLOR_OK, COLOR_DIVERGENT], alpha=0.85)
+    for i, p in enumerate(props):
+        axes[1].text(i, p + 1.5, f"{p:.1f}%", ha="center", fontsize=11)
+    axes[1].set_ylabel("現実的な範囲[300,700]に入る割合(%)")
+    axes[1].set_title("割合で見ると大きく異なる")
+    axes[1].set_ylim(0, 100)
+
+    fig.suptitle("min/maxの範囲が同じでも、現実的な範囲に入る割合は形状次第で大きく異なる", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT_DIR / "extreme_vs_proportion.png")
+    plt.close(fig)
+    print(f"extreme_vs_proportion.png saved "
+          f"(Beta(5,5): min={well.min():.0f} max={well.max():.0f} 帯域内={prop_well*100:.1f}%, "
+          f"Beta(0.3,0.3): min={mis.min():.0f} max={mis.max():.0f} 帯域内={prop_mis*100:.1f}%)")
+
+
 if __name__ == "__main__":
     plot_denominator_variance_explosion()
+    plot_extreme_vs_proportion()

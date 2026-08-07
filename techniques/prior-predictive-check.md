@@ -46,6 +46,10 @@
 
 ### 判断基準は極値だけでなく割合・信用区間幅で見る
 
+![min/maxの範囲がほぼ同じ2つのprior predictive分布(Beta(5,5)*1000: min=41,max=948、Beta(0.3,0.3)*1000: min=0,max=1000)でも、現実的な範囲[300,700]に入る質量の割合は80.3%と19.0%で大きく異なる](../assets/prior-predictive/extreme_vs_proportion.png)
+
+*Beta(5,5)とBeta(0.3,0.3)を[0,1000]にスケールしたprior predictiveを実際にサンプリングした結果(生成スクリプト: [scripts/generate_prior_predictive_plots.py](../scripts/generate_prior_predictive_plots.py))。*
+
 - **症状**: prior predictiveの最大値・最小値だけを見て「範囲内だから大丈夫」と判断すると、分布の大部分が非現実的な領域に偏っていても見逃す。
 - **対処**: 極値(min/max)に加えて、現実的な範囲に入る割合や信用区間の幅で事前分布の妥当性を判断する。
 - **なぜ効くか**: 極値は外れ値1つでも動くため、分布全体の健全性の指標としては弱い。

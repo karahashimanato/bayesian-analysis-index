@@ -19,6 +19,10 @@
 
 ### 正のスケール・集中度パラメータ(σ, λ, κなど、0より大きい値)
 
+![「分母のパラメータが0に近づくと分散が発散する」病理: Exponential(1)事前分布(0で密度が最大)由来のprior predictiveは最大115万まで暴走するが、Gamma(shape=2)事前分布(0で密度がゼロ)なら最大1.7万に収まる](../assets/prior-predictive/denominator_variance_explosion.png)
+
+*prior predictiveを実際にサンプリングした結果(生成スクリプト: [scripts/generate_prior_predictive_plots.py](../scripts/generate_prior_predictive_plots.py))。詳細は[techniques/prior-predictive-check.md](../techniques/prior-predictive-check.md#分母のパラメータが0に近づくと分散が発散する病理は分布族を問わず繰り返す)を参照。*
+
 - **代表的な事前分布**: `HalfNormal`、`HalfCauchy`、`Gamma(alpha>1, beta)`
 - **選び方のコツ**: そのパラメータが「分散・強度を分母的に決める」役割(Gamma-Poissonの集中度、階層モデルのグループ間分散など)を持つ場合、`Exponential`のように0付近に確率密度の山を持つ分布を使うと、まれに0に近い値を引いて分散が爆発するリスクがある。0での密度がゼロになる分布族(`Gamma(alpha>1,...)`)を選ぶと、この経路を構造的に塞げる([techniques/prior-predictive-check.md](../techniques/prior-predictive-check.md#分母のパラメータが0に近づくと分散が発散する病理は分布族を問わず繰り返す)参照)。
 - **落とし穴**: PyMCの`pm.HalfNormal(lower=, upper=)`のように、存在しない引数を渡してもエラーにならず黙って無視される実装上の罠がある。範囲を制約したい場合は分布の引数ではなく別の方法(truncation等)で実現する必要がある。
@@ -35,6 +39,10 @@
 ---
 
 ### 無制約の実数パラメータ(回帰係数など)
+
+![Jensen不等式によるロジスティック回帰の予測確率のズレ: 素朴な点推定sigmoid(β̄0+β̄1x)と事後平均E[sigmoid(β0+β1x)]は、係数の不確実性が乗る領域(x=3.7付近)で最大-0.086のズレを生む](../assets/statistical-biases/jensen_inequality_gap.png)
+
+*PyMCで実際にベイズロジスティック回帰をサンプリングした結果(生成スクリプト: [scripts/generate_statistical_biases_plots.py](../scripts/generate_statistical_biases_plots.py))。詳細は[tools/statistical-biases.md](statistical-biases.md#jensen不等式jensens-inequality)を参照。*
 
 - **代表的な事前分布**: `Normal(0, σ)`
 - **選び方のコツ**: スケール`σ`は、対応する説明変数の値の範囲・単位に応じて「非現実的に大きい効果を許さない」程度に設定する。`σ`を締めすぎると、Jensen不等式由来の非直感的な挙動(他パラメータの分散が加わるだけで予測平均がズレる)が見えにくくなることもあるため、事前予測チェックとセットで確認する([tools/statistical-biases.md](statistical-biases.md#jensen不等式jensens-inequality)参照)。

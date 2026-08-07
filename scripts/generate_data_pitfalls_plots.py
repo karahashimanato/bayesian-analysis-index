@@ -6,6 +6,11 @@ techniques/data-pitfalls.md に埋め込む可視化画像を生成するスク�
 素朴な回帰(Xのみ)・交絡変数で調整した回帰・ランダム化されたX、の
 3通りのベイズ線形回帰の事後分布を比較する。
 
+「データソースの限界(非公式・小サンプル)は分析結果とセットで明示する」の
+実例として、同じ真の割合から生成した小サンプル(n=8)と大サンプル(n=200)を
+それぞれベイズ二項モデルでフィットし、事後分布の95%信用区間の幅がどれだけ
+異なるかを比較する。
+
 実行方法:
     source .venv/bin/activate
     python scripts/generate_data_pitfalls_plots.py
@@ -109,5 +114,53 @@ def plot_confounding_bias():
           f"Z調整={bx_adjusted.mean():.3f}, ランダム化={bx_randomized.mean():.3f})")
 
 
+def plot_small_sample_uncertainty():
+    """同じ真の割合から生成した小サンプル(n=8)と大サンプル(n=200)で、
+    事後分布の95%信用区間の幅がどれだけ異なるかを示す。"""
+
+    rng = np.random.default_rng(42)
+    p_true = 0.15
+    n_small, n_large = 8, 200
+    k_small = rng.binomial(n_small, p_true)
+    k_large = rng.binomial(n_large, p_true)
+
+    def fit(n, k):
+        with pm.Model():
+            p = pm.Beta("p", 1, 1)
+            pm.Binomial("y", n=n, p=p, observed=k)
+            idata = pm.sample(3000, tune=1500, chains=4, target_accept=0.9,
+                               random_seed=2, progressbar=False,
+                               compute_convergence_checks=False)
+        return idata.posterior["p"].values.flatten()
+
+    p_small = fit(n_small, k_small)
+    p_large = fit(n_large, k_large)
+
+    ci_small = np.percentile(p_small, [2.5, 97.5])
+    ci_large = np.percentile(p_large, [2.5, 97.5])
+
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    xg = np.linspace(0, 1, 300)
+    for samples, ci, label, color, n, k in [
+        (p_small, ci_small, f"非公式・小サンプル(n={n_small}, k={k_small})", COLOR_DIVERGENT, n_small, k_small),
+        (p_large, ci_large, f"公式・大サンプル(n={n_large}, k={k_large})", COLOR_OK, n_large, k_large),
+    ]:
+        ax.hist(samples, bins=60, density=True, color=color, alpha=0.45,
+                label=f"{label}\n事後平均={samples.mean():.3f}, 95%区間=[{ci[0]:.3f},{ci[1]:.3f}](幅{ci[1]-ci[0]:.3f})")
+    ax.axvline(p_true, color="black", lw=1.5, ls="--", label=f"真の割合={p_true}")
+    ax.set_xlabel("割合 p の事後分布")
+    ax.set_ylabel("density")
+    ax.set_title("同じ真の値でも、小サンプルの事後分布は\n信用区間が大幅に広い(点推定だけでは区別できない)")
+    ax.legend(fontsize=8.5, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "small_sample_uncertainty.png")
+    plt.close(fig)
+
+    print(f"small_sample_uncertainty.png saved "
+          f"(真値={p_true}, 小サンプル: 平均={p_small.mean():.3f} 95%区間幅={ci_small[1]-ci_small[0]:.3f}, "
+          f"大サンプル: 平均={p_large.mean():.3f} 95%区間幅={ci_large[1]-ci_large[0]:.3f})")
+
+
 if __name__ == "__main__":
     plot_confounding_bias()
+    plot_small_sample_uncertainty()
