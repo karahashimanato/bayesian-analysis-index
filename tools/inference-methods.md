@@ -42,6 +42,10 @@
 
 ### Thompson Sampling
 
+![階層Thompson Samplingのロックイン: 真に最良の腕4(CTR18%だが試行数n=20)に対し、独立モデルは正しく次に選ばれる確率P(argmax p)=0.54で最有力と推すが、階層モデルは他の腕に事後分布を引っ張られてP=0.30まで下がり、試行数の多い平凡な腕3(CTR10%、n=500)をP=0.49で誤って最有力と推す](../assets/inference-methods/thompson_sampling_lockin.png)
+
+*PyMCで実際に階層Beta-Binomialモデルをサンプリングし、5本腕のうち1本だけ試行数が極端に少ないスナップショットに対する「次にその腕が選ばれる確率」を、独立モデル(閉形式のBeta事後分布)と比較した結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。*
+
 - **定義**: 各腕(選択肢)の報酬確率の事後分布から1つサンプルを引き、そのサンプル値が最大の腕を選択する、ベイズ的な多腕バンディットアルゴリズム。事後分布のサンプリングそのものが、探索(不確実な腕を試す)と活用(良さそうな腕を選ぶ)のバランスを自然に取る。
 - **数式・仕組み**: 独立版は各腕ごとに独立な[Beta-Binomial](observation-models.md#beta-binomial)(Beta-Bernoulli)事後分布を持つ。階層版は腕間で情報を共有する階層ベイズモデルの事後分布からサンプルする。
 - **使い分け**: 階層版は腕間の情報共有によりMAEを改善できる一方、収縮バイアスや、事後分布の確信が強まりすぎて探索が止まる「ロックイン」を起こしうる。ロックインは「探索の下限を保証する」仕組み(ε-greedyミックスなど)を別途組み合わせて対策する([techniques/diagnostics.md](../techniques/diagnostics.md#オンライン方策のロックインは探索の下限保証の欠如を疑う)参照)。
