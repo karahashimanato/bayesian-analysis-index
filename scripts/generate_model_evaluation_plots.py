@@ -489,6 +489,99 @@ def plot_ar1_phi_persistence():
           f"n=150: phi平均={phi_150.mean():.3f} divergence={div_150})")
 
 
+def plot_gp_extrapolation_behavior():
+    """訓練域内では健全に収束する2種類のGP回帰(RBF-exact / HSGP)が、
+    訓練域外への外挿では全く異なる挙動を示すことを示す。RBF-exact(ガウス
+    尤度)は距離が離れるほど事前平均(0)へ回帰する一方、HSGP(Poisson尤度、
+    有限個の基底関数による近似)は基底関数の有効域境界を超えると不安定になり、
+    観測スケールを大きく超えて跳ね上がる。"""
+
+    rng = np.random.default_rng(14)
+
+    # ---- RBF-exact GP(ガウス尤度): 訓練域外で事前平均(0)へ回帰 ----
+    x_train = np.linspace(0, 10, 80)
+    y_train = 3.0 * np.sin(0.6 * x_train) + rng.normal(0, 0.3, 80)
+    x_ext = np.linspace(-5, 20, 200)
+
+    with pm.Model() as model_rbf:
+        ell = pm.Gamma("ell", alpha=3, beta=1)
+        eta = pm.HalfNormal("eta", 3.0)
+        cov = eta ** 2 * pm.gp.cov.ExpQuad(1, ls=ell)
+        gp_rbf = pm.gp.Marginal(cov_func=cov)
+        sigma = pm.HalfNormal("sigma", 1.0)
+        gp_rbf.marginal_likelihood("y", X=x_train[:, None], y=y_train, sigma=sigma)
+        idata_rbf = pm.sample(500, tune=1000, chains=2, target_accept=0.9,
+                               random_seed=1, progressbar=False,
+                               compute_convergence_checks=False)
+    with model_rbf:
+        f_ext = gp_rbf.conditional("f_ext", Xnew=x_ext[:, None])
+        ppc_rbf = pm.sample_posterior_predictive(idata_rbf, var_names=["f_ext"],
+                                                   random_seed=1, progressbar=False)
+    f_ext_draws = ppc_rbf.posterior_predictive["f_ext"].values.reshape(-1, len(x_ext))
+    f_ext_mean = f_ext_draws.mean(axis=0)
+    f_ext_lo, f_ext_hi = np.percentile(f_ext_draws, [2.5, 97.5], axis=0)
+
+    # ---- HSGP(Poisson尤度): 学習域の基底関数境界を超えると不安定になる ----
+    x_train2 = np.linspace(0, 10, 100)
+    true_rate = np.exp(np.log(20.0) + 0.8 * np.sin(0.6 * x_train2))
+    counts = rng.poisson(true_rate)
+    x_ext2 = np.linspace(0, 30, 300)
+
+    with pm.Model() as model_hsgp:
+        mu0 = np.log(counts.mean() + 1)
+        eta2 = pm.HalfNormal("eta2", 2.0)
+        ell2 = pm.Gamma("ell2", alpha=3, beta=1)
+        cov2 = eta2 ** 2 * pm.gp.cov.ExpQuad(1, ls=ell2)
+        gp_hsgp = pm.gp.HSGP(m=[25], c=1.5, cov_func=cov2)
+        f2 = gp_hsgp.prior("f2", X=x_train2[:, None])
+        pm.Poisson("y2", mu=pm.math.exp(mu0 + f2), observed=counts)
+        idata_hsgp = pm.sample(500, tune=1500, chains=2, target_accept=0.95,
+                                random_seed=2, progressbar=False,
+                                compute_convergence_checks=False)
+    with model_hsgp:
+        f2_ext = gp_hsgp.conditional("f2_ext", Xnew=x_ext2[:, None])
+        ppc_hsgp = pm.sample_posterior_predictive(idata_hsgp, var_names=["f2_ext"],
+                                                    random_seed=2, progressbar=False)
+    f2_ext_draws = ppc_hsgp.posterior_predictive["f2_ext"].values.reshape(-1, len(x_ext2))
+    rate_ext_draws = np.exp(mu0 + f2_ext_draws)
+    rate_ext_mean = rate_ext_draws.mean(axis=0)
+    rate_lo, rate_hi = np.percentile(rate_ext_draws, [2.5, 97.5], axis=0)
+
+    rate_at_edge = float(np.interp(10, x_ext2, rate_ext_mean))
+    rate_at_peak = float(rate_ext_mean[(x_ext2 > 10)].max())
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.5))
+
+    axes[0].fill_between(x_ext, f_ext_lo, f_ext_hi, color=COLOR_OK, alpha=0.2)
+    axes[0].plot(x_ext, f_ext_mean, color=COLOR_OK, lw=2, label="事後平均")
+    axes[0].scatter(x_train, y_train, color="black", s=8, alpha=0.4, label="訓練データ")
+    axes[0].axvspan(0, 10, color="gray", alpha=0.08, label="訓練域")
+    axes[0].axhline(0, color=COLOR_DIVERGENT, lw=1, ls="--", label="事前平均(0)")
+    axes[0].set_xlabel("x")
+    axes[0].set_ylabel("f(x)")
+    axes[0].set_title("RBF-exact(ガウス尤度):\n訓練域外で事前平均へ回帰")
+    axes[0].legend(fontsize=8, loc="upper right")
+
+    axes[1].fill_between(x_ext2, rate_lo, rate_hi, color=COLOR_ALT, alpha=0.2)
+    axes[1].plot(x_ext2, rate_ext_mean, color=COLOR_ALT, lw=2, label="事後平均レート")
+    axes[1].scatter(x_train2, counts, color="black", s=6, alpha=0.3, label="訓練データ(カウント)")
+    axes[1].axvspan(0, 10, color="gray", alpha=0.08, label="訓練域")
+    axes[1].set_xlabel("x")
+    axes[1].set_ylabel("rate = exp(mu+f)")
+    axes[1].set_title(f"HSGP(Poisson尤度):\n訓練域境界(rate={rate_at_edge:.0f})を超えると"
+                       f"\n最大rate={rate_at_peak:.0f}まで不安定に跳ね上がる")
+    axes[1].legend(fontsize=8, loc="upper right")
+
+    fig.suptitle("GP回帰: 訓練域内で健全でも、外挿の挙動は手法によって全く異なる", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    fig.savefig(OUT_DIR / "gp_extrapolation_behavior.png")
+    plt.close(fig)
+
+    print(f"gp_extrapolation_behavior.png saved "
+          f"(RBF-exact: f(x=20)={np.interp(20, x_ext, f_ext_mean):.2f}(事前平均0に回帰), "
+          f"HSGP: rate at訓練端={rate_at_edge:.0f} -> 域外最大={rate_at_peak:.0f})")
+
+
 if __name__ == "__main__":
     plot_cumulative_effect_variance_growth()
     plot_cindex_brier_independence()
@@ -496,3 +589,4 @@ if __name__ == "__main__":
     plot_loo_dse_comparison()
     plot_mde_power_curve()
     plot_ar1_phi_persistence()
+    plot_gp_extrapolation_behavior()

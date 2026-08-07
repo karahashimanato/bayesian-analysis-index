@@ -127,6 +127,57 @@ def plot_extreme_vs_proportion():
           f"Beta(0.3,0.3): min={mis.min():.0f} max={mis.max():.0f} 帯域内={prop_mis*100:.1f}%)")
 
 
+def plot_gp_hyperparameter_envelope():
+    """GP回帰のハイパーパラメータ(長さスケールell、振幅eta、観測ノイズsigma)を
+    事前分布から50回ドローし、それぞれで得られる関数を実データのスケールに
+    重ねて、包絡線がデータの範囲を覆いつつ暴走していないかを目視確認する。"""
+
+    rng = np.random.default_rng(3)
+    x = np.linspace(0, 10, 100)
+    n_draws = 50
+
+    # 実データのスケールを模したもの(例: 世界平均気温偏差)
+    data_lo, data_hi = -0.5, 1.3
+
+    ell_draws = stats.gamma.rvs(a=3, scale=1, size=n_draws, random_state=rng)
+    eta_draws = stats.halfnorm.rvs(scale=0.5, size=n_draws, random_state=rng)
+    sigma_draws = stats.halfnorm.rvs(scale=0.2, size=n_draws, random_state=rng)
+
+    def rbf_kernel(x1, x2, ell, eta):
+        d2 = (x1[:, None] - x2[None, :]) ** 2
+        return eta ** 2 * np.exp(-0.5 * d2 / ell ** 2)
+
+    funcs = np.empty((n_draws, len(x)))
+    for i in range(n_draws):
+        K = rbf_kernel(x, x, ell_draws[i], eta_draws[i]) + 1e-6 * np.eye(len(x))
+        L = np.linalg.cholesky(K)
+        f = L @ rng.normal(size=len(x))
+        funcs[i] = f + rng.normal(0, sigma_draws[i], len(x))
+
+    env_lo, env_hi = funcs.min(axis=0), funcs.max(axis=0)
+    frac_within = float(np.mean((funcs.min(axis=1) <= data_hi) & (funcs.max(axis=1) >= data_lo)))
+
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    for i in range(n_draws):
+        ax.plot(x, funcs[i], color=COLOR_OK, alpha=0.15, lw=1)
+    ax.fill_between(x, env_lo, env_hi, color=COLOR_OK, alpha=0.08, label="50ドローの包絡線")
+    ax.axhspan(data_lo, data_hi, color=COLOR_DIVERGENT, alpha=0.15,
+               label=f"実データのスケール[{data_lo}, {data_hi}]")
+    ax.set_xlabel("x")
+    ax.set_ylabel("f(x)(prior predictiveのドロー)")
+    ax.set_title(f"GPハイパーパラメータの事前分布から関数を50回ドローし\n実データのスケールを覆っているか目視確認する"
+                 f"\n(データ範囲と重なるドロー: {frac_within:.0%})")
+    ax.legend(fontsize=9, loc="upper right")
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "gp_hyperparameter_envelope.png")
+    plt.close(fig)
+
+    print(f"gp_hyperparameter_envelope.png saved "
+          f"(envelope=[{env_lo.min():.2f}, {env_hi.max():.2f}], "
+          f"データ範囲=[{data_lo},{data_hi}], 重なるドロー割合={frac_within:.0%})")
+
+
 if __name__ == "__main__":
     plot_denominator_variance_explosion()
     plot_extreme_vs_proportion()
+    plot_gp_hyperparameter_envelope()
