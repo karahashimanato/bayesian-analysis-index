@@ -6,6 +6,10 @@
 
 ### LOO (Leave-One-Out Cross-Validation, PSIS-LOO)
 
+![LOOのelpd_diffは絶対値ではなくdseと比較して評価する: 予測子の有無を比較したA vs Bはelpd_diff=-40.00, dse=5.90で|diff|>2×dseとなり有意だが、無関係な特徴量を追加しただけのA vs Cはelpd_diff=-1.00, dse=1.00で|diff|<2×dseとなり有意でない](../assets/evaluation-metrics/loo_elpd_diff.png)
+
+*PyMCで実際に3種類の線形回帰モデルをサンプリングし、`pm.compute_log_likelihood`とArviZの`az.compare`でPSIS-LOOを計算した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
+
 - **定義**: ベイズモデルの汎化性能(未見データに対する予測対数尤度の期待値)を、実際にholdoutデータを分離しなくても近似的に見積もる指標。
 - **数式・仕組み**: 理論上は各データ点を1つずつ除いて再学習した場合の対数予測密度の合計(`elpd_loo`)だが、モデルをデータ点の数だけ再学習するのは非現実的なため、Pareto-Smoothed Importance Sampling(PSIS)で近似計算する。モデル間比較には2モデルの`elpd_loo`の差である`elpd_diff`と、その標準誤差`dse`を使う。有効パラメータ数`p_LOO`はモデルの実効的な複雑さを表し、過学習ペナルティの目安になる。
 - **使い分け**: held-outデータを別途用意しにくい/したくない場合の汎化性能推定に使う。`elpd_diff`は単体の絶対値では意味がなく、`dse`と比較して初めて「有意な差か」を判断できる([techniques/model-evaluation.md](../techniques/model-evaluation.md#looの差は標準誤差dseと比較して評価する)参照)。
@@ -14,6 +18,10 @@
 ---
 
 ### AUC-ROC
+
+![AUC-ROCとBrier Scoreは独立な性質を測る: 較正済みモデルと同じ順位付け(AUC=0.875)を保ったまま確信度だけ3倍にした過信モデルはBrierが0.144→0.166に悪化し、逆に基準率だけを予測する定数モデルはAUCが0.875→0.467まで悪化する](../assets/evaluation-metrics/brier_auc_independence.png)
+
+*PyMCで実際にベイズロジスティック回帰をサンプリングし、その事後平均係数から3種類の予測確率を作って比較した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
 
 - **定義**: 二値分類モデルの順位付け能力(正例を負例より高いスコアと予測できているか)を測る指標。0.5がランダム、1.0が完全な分離を意味する。
 - **数式・仕組み**: 閾値を動かしたときのTPR(真陽性率)とFPR(偽陽性率)の軌跡であるROC曲線の下側面積。ペアワイズに解釈すると「ランダムに選んだ正例のスコアが、ランダムに選んだ負例のスコアを上回る確率」と等価。

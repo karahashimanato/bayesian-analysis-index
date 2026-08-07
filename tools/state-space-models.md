@@ -15,6 +15,10 @@
 
 ### GaussianRandomWalk(時変パラメータの状態空間表現)
 
+![GaussianRandomWalkによる時変振幅の追従: 振幅が緩やかに変化する周期データに対し、固定振幅モデルはRMSE=1.39で変化を全く捉えられないが、GaussianRandomWalkによる時変振幅モデルはRMSE=0.17まで追従できる](../assets/state-space-models/gaussian_random_walk_amplitude.png)
+
+*PyMCで実際にNUTSサンプリングした結果(周期20の振動に周期100で緩やかに変化する振幅を乗せたデータを、20ブロックに分けたGaussianRandomWalkと固定振幅モデルの両方でフィットした。生成スクリプト: [scripts/generate_state_space_models_plots.py](../scripts/generate_state_space_models_plots.py))。*
+
 - **定義**: パラメータが時間とともに滑らかに、しかし予測不能に変化していくことを表現する、正規分布のステップを積み重ねた離散時間の状態空間モデル。
 - **数式・仕組み**: `x_t = x_{t-1} + ε_t`(`ε_t ~ Normal(0, σ)`)。各時点の値が直前の時点からの正規分布のランダムな増分で決まる。PyMCの`GaussianRandomWalk`はこの構造を1つの分布として提供する。
 - **使い分け**: 周期モデルの振幅など、固定値では捉えきれない緩やかな時間変化を表現したい場合に使う。`shape`引数を使うとステップ数がint8にキャストされ`n>127`でオーバーフローする実装上の癖があるため、`steps`/`init_dist`を明示的に指定する([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#gaussianrandomwalkのshape引数によるint8オーバーフローをstepsinit_distで回避する)参照)。
@@ -23,6 +27,10 @@
 ---
 
 ### 非線形状態空間モデル(process noise付き)
+
+![process noiseとobservation noiseの非識別性: ローカルレベルモデルの事後サンプルはσ_processとσ_obsの間にr=-0.72の強い負の相関(ridge)を持ち、個々の周辺分布(青・紫)は広いが和σ_process+σ_obsの分布(黒線)はより狭く、和のほうがよく識別されている](../assets/state-space-models/process_obs_noise_nonidentifiability.png)
+
+*PyMCで実際にNUTSサンプリングした結果(真値をσ_process=σ_obs=1.0とする長さ20のローカルレベルモデル。生成スクリプト: [scripts/generate_state_space_models_plots.py](../scripts/generate_state_space_models_plots.py))。*
 
 - **定義**: 状態遷移が線形でない(生物学的成長モデルなど)関数で記述され、各時点の遷移に観測されないランダムな変動(process noise)が加わる状態空間モデル。
 - **数式・仕組み**: 例えばロジスティック成長: `x_t = x_{t-1} + r(1 - exp(x_{t-1})/K) + process_noise`。process noiseの大きさ`sigma_process`と観測誤差の大きさ`sigma_obs`は、どちらも「モデルの予測と実データのズレ」を説明する点で役割が似ており、非識別性を起こしやすい。
