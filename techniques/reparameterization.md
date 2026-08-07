@@ -94,6 +94,10 @@
 
 ### GPの平均関数を固定定数にし、基底関数数を絞ることで非識別性を解消する
 
+![HSGP: muを自由推定+m=20(壊れた設定)ではdivergence=224/4000・r_hat_max=1.09だが、muを固定定数+m=6(修正後)ではdivergence=5/4000・r_hat_max=1.01まで解消する。mu単体の推定値は真値(3.40)から壊れた設定で3.26、修正後で3.95とどちらもズレる(ridge型の非識別性)が、実際にフィットされる合成量mu+fはどちらの設定でもほぼ同じ精度で真の対数レート曲線を再現する](../assets/reparameterization/gp_hsgp_mean_basis_fix.png)
+
+*非ガウス尤度(Poisson)のHSGP回帰をPyMCで実際に2通り(mu自由推定+m=20 / mu固定+m=6)サンプリングした結果(生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。点推定(mu+f)自体はどちらの設定でも妥当だが、サンプリングの信頼性(divergence・r_hat)が大きく異なる点に注意。*
+
 - **症状**: 非ガウス尤度(Poisson)のGP回帰で、平均関数`mu`を確率変数として推定しつつ`pm.gp.Latent`をサンプリングすると、r_hat最大4.06・divergence 71という完全な収束失敗に陥る。原因は2種類の複合的な非識別性: (1) `mu`とGP自体の低周波成分が交絡する尾根(ridge)状の構造、(2) 計算量削減のため`pm.gp.HSGP`(基底関数近似)に切り替えても、基底関数数`m`が多い(m=20)と「`eta`(振幅)を大きくしながら基底係数を比例的に小さくする」ことで尤度を際限なく上げられる退化(`eta`の上限を1.5→5と緩めるたびに事後がその上限に張り付き続けることで確認)。
 - **対処**: `mu`を`log(mean(fires))`のような固定定数にし、基底関数数を`m=20`から`m=6`まで絞る。
 - **なぜ効くか**: どちらの非識別性も「モデルの自由度が尤度に対して過剰である」ことに起因する。パラメータ数を絞る・平均を固定するといった「モデルの自由度を意図的に削る」対応により、尤度を無限に押し上げられる方向そのものをパラメータ空間から除去できる。ridge型非識別性そのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ridge型非識別性)を参照。

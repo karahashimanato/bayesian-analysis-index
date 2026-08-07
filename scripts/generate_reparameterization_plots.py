@@ -15,6 +15,7 @@ PyMC で実際にサンプリングし、再パラメータ化(reparameterizatio
 
 from pathlib import Path
 
+import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
@@ -223,7 +224,94 @@ def plot_noncentered_ctr_funnel():
     print(f"noncentered_ctr_funnel.png saved (divergence: {n_div_c}/{len(div_c)} -> {n_div_n}/{len(div_n)})")
 
 
+def plot_gp_hsgp_mean_basis_fix():
+    """非ガウス尤度(Poisson)のHSGP回帰で、平均関数muを自由パラメータのまま
+    多数の基底関数(m=20)を使うと深刻なdivergence/r_hat悪化を起こすが、
+    muを固定定数にし基底関数数を絞る(m=6)とほぼ解消することを示す。
+    mu単体の推定値はどちらも真値からズレる(ridge型の非識別性)が、
+    実際にフィットされる合成量mu+fはどちらの設定でもほぼ同じ精度で
+    真の対数レートを再現することも合わせて示す。"""
+
+    rng = np.random.default_rng(6)
+    N = 150
+    X = np.linspace(0, 10, N)
+    mu_true = np.log(30.0)
+    true_f = 1.0 * np.sin(0.4 * X)
+    log_rate_true = mu_true + true_f
+    counts = rng.poisson(np.exp(log_rate_true))
+
+    def fit(free_mu, m, eta_upper, seed):
+        with pm.Model():
+            if free_mu:
+                mu = pm.Normal("mu", np.log(counts.mean() + 1), 2.0)
+            else:
+                mu = np.log(counts.mean() + 1)
+
+            eta = pm.HalfNormal("eta", eta_upper)
+            ls = 2.5  # 固定(GP自体の長さスケール非識別性は本デモの対象外)
+            cov = eta ** 2 * pm.gp.cov.ExpQuad(1, ls=ls)
+            gp = pm.gp.HSGP(m=[m], c=2.0, cov_func=cov)
+            f = gp.prior("f", X=X[:, None])
+
+            log_rate = mu + f
+            pm.Poisson("y", mu=pm.math.exp(log_rate), observed=counts)
+
+            idata = pm.sample(1000, tune=2500, chains=4, target_accept=0.95,
+                               random_seed=seed, progressbar=False,
+                               compute_convergence_checks=False)
+
+        n_div = int(idata.sample_stats["diverging"].sum())
+        rhat_ds = az.rhat(idata)
+        rhat_max = max(float(rhat_ds[v].max()) for v in rhat_ds.data_vars)
+        f_mean = idata.posterior["f"].values.reshape(-1, N).mean(axis=0)
+        mu_mean = float(idata.posterior["mu"].values.mean()) if free_mu else float(mu)
+        return n_div, rhat_max, f_mean, mu_mean
+
+    n_div_broken, rhat_broken, f_broken, mu_broken = fit(True, 20, 5.0, 1)
+    n_div_fixed, rhat_fixed, f_fixed, mu_fixed = fit(False, 6, 2.0, 1)
+
+    lograte_broken = mu_broken + f_broken
+    lograte_fixed = mu_fixed + f_fixed
+    total_draws = 4000
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5.5))
+
+    labels = [f"muを自由推定\nm=20(壊れた設定)", f"muを固定定数\nm=6(修正後)"]
+    x_pos = np.arange(2)
+    divs = [n_div_broken, n_div_fixed]
+    colors = [COLOR_DIVERGENT, COLOR_OK]
+    axes[0].bar(x_pos, divs, color=colors, width=0.5)
+    for i, (d, rhat) in enumerate(zip(divs, [rhat_broken, rhat_fixed])):
+        axes[0].annotate(f"{d}/{total_draws}\nr_hat_max={rhat:.2f}", (i, d),
+                          xytext=(0, 6), textcoords="offset points", ha="center", fontsize=9)
+    axes[0].set_xticks(x_pos)
+    axes[0].set_xticklabels(labels, fontsize=9)
+    axes[0].set_ylabel("divergence数")
+    axes[0].set_title("divergence数とr_hat")
+
+    axes[1].plot(X, log_rate_true, color="black", lw=2, label="真の対数レート")
+    axes[1].plot(X, lograte_broken, color=COLOR_DIVERGENT, lw=1.5, ls="--",
+                 label=f"壊れた設定のmu+f(mu={mu_broken:.2f})")
+    axes[1].plot(X, lograte_fixed, color=COLOR_OK, lw=1.5, ls=":",
+                 label=f"修正後のmu+f(mu={mu_fixed:.2f})")
+    axes[1].set_xlabel("x")
+    axes[1].set_ylabel("log(rate)")
+    axes[1].set_title(f"mu単体は真値(mu={mu_true:.2f})からズレるが\nmu+fはどちらもほぼ真の曲線を再現")
+    axes[1].legend(fontsize=8.5)
+
+    fig.suptitle("HSGP: muを固定し基底関数数を絞ることでdivergenceを解消する\n(点推定mu+fは元々妥当だが、サンプリング自体の信頼性が違う)", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.88))
+    fig.savefig(OUT_DIR / "gp_hsgp_mean_basis_fix.png")
+    plt.close(fig)
+
+    print(f"gp_hsgp_mean_basis_fix.png saved "
+          f"(divergence: {n_div_broken}/{total_draws} -> {n_div_fixed}/{total_draws}, "
+          f"r_hat_max: {rhat_broken:.2f} -> {rhat_fixed:.2f}, "
+          f"mu: broken={mu_broken:.2f} fixed={mu_fixed:.2f} true={mu_true:.2f})")
+
+
 if __name__ == "__main__":
     plot_trig_reparameterization()
     plot_ridge_ratio_reparameterization()
     plot_noncentered_ctr_funnel()
+    plot_gp_hsgp_mean_basis_fix()
