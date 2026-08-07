@@ -72,6 +72,10 @@
 
 ### ラベルスイッチングは順序制約または事前分布のレンジ分離で解消する
 
+![ラベルスイッチング: 順序制約なしではchainごとにmu[0]が-2.5付近と2.5付近に分かれ(r_hat=1.73)、素朴な事後平均は-0.07に潰れる。順序制約ありでは全chainが一致する(r_hat=1.00)](../assets/pathologies/label_switching.png)
+
+*PyMCで実際にNUTSサンプリングした結果(対称な2成分混合モデル、真の値は±2.5。生成スクリプト: [scripts/generate_pathology_plots.py](../scripts/generate_pathology_plots.py))。詳細は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ラベルスイッチングlabel-switching)を参照。*
+
 - **症状**: 対称な構造を持つ複数の潜在成分(MSMの2レジーム、2-factor SVモデルのfast/slow成分)が、MCMCの探索中に"名前"を入れ替えてしまい、事後平均を取ると成分同士が混ざり合って潰れる(例: 2レジームのボラティリティが同じ値に収束し区別不能になる)。divergence=0・r_hat≈1.00でも発生し、サンプリング健全性の指標だけでは検出できない。
 - **対処**: 事後的に成分を区別する場合は`pt.sort()`などで順序制約(例: $\sigma_0 < \sigma_1$)を課す。あらかじめ非対称性を仮定できる場合は、成分ごとに事前分布のレンジを分離する(例: $\phi^{fast}\sim\text{Beta}(2,5)$、 $\phi^{slow}\sim\text{Beta}(20,1.5)$)。
 - **なぜ効くか**: どちらの方法も、モデルの対称性(どちらの成分がどちらの"名前"でも尤度が同じ)を、パラメータ空間に非対称な制約を課すことで壊す。順序制約は事後的な後処理、レンジ分離は事前分布による先回りという違いはあるが、狙いは同じ。ラベルスイッチングそのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ラベルスイッチングlabel-switching)を参照。

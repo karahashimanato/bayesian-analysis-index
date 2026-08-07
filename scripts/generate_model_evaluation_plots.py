@@ -13,6 +13,7 @@ techniques/model-evaluation.md に埋め込む可視化画像を生成するス�
 
 from pathlib import Path
 
+import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
@@ -267,7 +268,147 @@ def plot_placebo_false_positive_rate():
           f"1回目の結果={'誤検出' if detections[0] else '正しく非有意'})")
 
 
+def plot_loo_dse_comparison():
+    """3つのベイズ線形回帰モデル(切片のみ/真の説明変数xあり/xと無関係な
+    ノイズ変数zも追加)を実際にサンプリングし、az.compareでelpd_diffと
+    その標準誤差dseを比較する。xの有無は明確に有意(dseの約12倍)だが、
+    無関係なzの追加はelpd_diffがdseの範囲内(不確実性の中)に収まり
+    有意でないことを示す。"""
+
+    rng = np.random.default_rng(3)
+    n = 150
+    x = rng.normal(0, 1, n)
+    z = rng.normal(0, 1, n)  # yと無関係なノイズ変数
+    true_a, true_b = 2.0, 3.0
+    y = true_a + true_b * x + rng.normal(0, 1.5, n)
+
+    def fit(use_x, use_z):
+        with pm.Model():
+            a = pm.Normal("a", 0, 10)
+            mu = a
+            if use_x:
+                b = pm.Normal("b", 0, 10)
+                mu = mu + b * x
+            if use_z:
+                g = pm.Normal("g", 0, 10)
+                mu = mu + g * z
+            sigma = pm.HalfNormal("sigma", 5)
+            pm.Normal("y", mu=mu, sigma=sigma, observed=y)
+            idata = pm.sample(1000, tune=1000, chains=4, target_accept=0.9,
+                               random_seed=1, progressbar=False,
+                               compute_convergence_checks=False)
+            pm.compute_log_likelihood(idata)
+        return idata
+
+    idata_intercept = fit(False, False)
+    idata_x = fit(True, False)
+    idata_xz = fit(True, True)
+
+    cmp_xvs0 = az.compare({"intercept_only": idata_intercept, "with_x": idata_x}, round_to=6)
+    cmp_xzvs_x = az.compare({"with_x": idata_x, "with_x_and_z": idata_xz}, round_to=6)
+
+    diff1 = abs(cmp_xvs0.loc["intercept_only", "elpd_diff"])
+    dse1 = cmp_xvs0.loc["intercept_only", "dse"]
+    diff2 = abs(cmp_xzvs_x.loc["with_x_and_z", "elpd_diff"])
+    dse2 = cmp_xzvs_x.loc["with_x_and_z", "dse"]
+
+    fig, ax = plt.subplots(figsize=(7.5, 5.5))
+    labels = ["切片のみ vs\n真の説明変数xあり", "xあり vs\nxと無関係なzも追加"]
+    x_pos = np.arange(2)
+    diffs = [diff1, diff2]
+    dses = [dse1, dse2]
+    colors = [COLOR_OK, COLOR_DIVERGENT]
+    ax.bar(x_pos, diffs, yerr=dses, capsize=6, color=colors, width=0.5)
+    for i, (d, se) in enumerate(zip(diffs, dses)):
+        ax.annotate(f"|elpd_diff|={d:.1f}\ndse={se:.1f}\n({d/se:.1f}倍)",
+                    (i, d + se), xytext=(0, 6), textcoords="offset points",
+                    ha="center", fontsize=9)
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_ylabel("|elpd_diff| (誤差棒はdse)")
+    ax.set_title("elpd_diffの絶対値だけでなくdseとの比で有意性を判断する\n"
+                  "(xの追加は明確に有意、無関係なzの追加は誤差の範囲内)")
+    ax.set_ylim(0, max(d + se for d, se in zip(diffs, dses)) * 1.3)
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "loo_dse_comparison.png")
+    plt.close(fig)
+
+    print(f"loo_dse_comparison.png saved "
+          f"(intercept_only vs with_x: |elpd_diff|={diff1:.1f}, dse={dse1:.1f}, {diff1/dse1:.1f}x; "
+          f"with_x vs with_x_and_z: |elpd_diff|={diff2:.1f}, dse={dse2:.1f}, {diff2/dse2:.1f}x)")
+
+
+def plot_mde_power_curve():
+    """既知の効果量を人為的に注入した半合成データを、残差プールのブート
+    ストラップ再サンプリングで反復ごとに変えながら生成し、ベイズ的な
+    平均差検定(95%信用区間が0を含まないか)の検出率を効果量ごとに実測して
+    検出力曲線(power curve)を描き、80%検出力に対応する最小検出可能効果
+    (MDE)を求める。"""
+
+    rng = np.random.default_rng(7)
+    n_pre, n_post = 30, 30
+    true_mu = 10.0
+    obs_sigma = 2.0
+
+    base_pre = rng.normal(true_mu, obs_sigma, n_pre)
+    base_post = rng.normal(true_mu, obs_sigma, n_post)
+    residual_pool = np.concatenate([base_pre - base_pre.mean(), base_post - base_post.mean()])
+
+    def fit_effect(y_pre, y_post, seed):
+        with pm.Model():
+            mu_pre = pm.Normal("mu_pre", y_pre.mean(), 5)
+            delta = pm.Normal("delta", 0, 5)
+            sigma = pm.HalfNormal("sigma", 5)
+            pm.Normal("y_pre", mu=mu_pre, sigma=sigma, observed=y_pre)
+            pm.Normal("y_post", mu=mu_pre + delta, sigma=sigma, observed=y_post)
+            idata = pm.sample(400, tune=400, chains=2, cores=1, target_accept=0.9,
+                               random_seed=seed, progressbar=False,
+                               compute_convergence_checks=False)
+        d = idata.posterior["delta"].values.flatten()
+        lo, hi = np.percentile(d, [2.5, 97.5])
+        return not (lo <= 0 <= hi)
+
+    effect_sizes = [0.0, 0.5, 1.0, 1.5, 2.0, 2.5]
+    n_rep = 20
+    detect_rates = []
+    for delta_true in effect_sizes:
+        detections = 0
+        for r in range(n_rep):
+            boot_pre = rng.choice(residual_pool, n_pre, replace=True) + true_mu
+            boot_post = rng.choice(residual_pool, n_post, replace=True) + true_mu + delta_true
+            detections += fit_effect(boot_pre, boot_post, seed=r)
+        detect_rates.append(detections / n_rep)
+
+    detect_rates = np.array(detect_rates)
+    effect_sizes_arr = np.array(effect_sizes)
+    # 80%検出力の効果量(MDE)を線形補間で求める
+    if (detect_rates >= 0.8).any():
+        mde = float(np.interp(0.8, detect_rates, effect_sizes_arr))
+    else:
+        mde = float("nan")
+
+    fig, ax = plt.subplots(figsize=(7.5, 5.5))
+    ax.plot(effect_sizes_arr, detect_rates, "o-", color=COLOR_OK, lw=2, ms=7)
+    ax.axhline(0.8, color=COLOR_ALT, ls="--", lw=1.3, label="検出力80%ライン")
+    if not np.isnan(mde):
+        ax.axvline(mde, color=COLOR_DIVERGENT, ls="--", lw=1.3, label=f"MDE ≈ {mde:.2f}")
+    ax.set_xlabel("注入した効果量(真値)")
+    ax.set_ylabel("検出率(95%信用区間が0を含まない割合)")
+    ax.set_ylim(-0.05, 1.05)
+    ax.set_title(f"半合成データへの効果量注入から検出力曲線を実測し\nMDE(80%検出力の効果量)を較正する(反復{n_rep}回/効果量)")
+    ax.legend(fontsize=9)
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "mde_power_curve.png")
+    plt.close(fig)
+
+    print("mde_power_curve.png saved (" +
+          ", ".join(f"delta={d}: rate={r:.2f}" for d, r in zip(effect_sizes, detect_rates)) +
+          f", MDE≈{mde:.2f})")
+
+
 if __name__ == "__main__":
     plot_cumulative_effect_variance_growth()
     plot_cindex_brier_independence()
     plot_placebo_false_positive_rate()
+    plot_loo_dse_comparison()
+    plot_mde_power_curve()

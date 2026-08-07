@@ -28,6 +28,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### LOOの差は標準誤差(dse)と比較して評価する
 
+![elpd_diffの絶対値だけでなくdseとの比で有意性を判断する: 切片のみモデルとxありモデルの差は|elpd_diff|=143.0でdseの11.6倍あり明確に有意だが、xありモデルとxに無関係なノイズ変数zも加えたモデルの差は|elpd_diff|=0.5でdseの0.4倍にとどまり誤差の範囲内](../assets/model-evaluation/loo_dse_comparison.png)
+
+*3つのベイズ線形回帰モデル(切片のみ/真の説明変数xあり/xと無関係なノイズ変数zも追加)をPyMCで実際にサンプリングし、`az.compare`でelpd_diffとdseを算出した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。LOOそのものの仕組みは[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#loo-leave-one-out-cross-validation-psis-loo)を参照。*
+
 - **症状**: `elpd_diff` の絶対値の大きさだけを見て「圧倒的に優れている」と判断すると、誤差の範囲内かもしれない差を過大評価する。
 - **対処**: `elpd_diff` を標準誤差 `dse` で割り、何倍の差があるかで有意性を判断する(例: 差が標準誤差の約6倍)。あわせて有効パラメータ数 `p_LOO` の増加が過学習のペナルティとして妥当な範囲かも確認する。
 - **なぜ効くか**: `elpd_diff` 単体では不確実性の大きさがわからず、`dse` との比較で初めて「意味のある差か」を判断できる。LOOそのものの仕組みは[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#loo-leave-one-out-cross-validation-psis-loo)を参照。
@@ -116,6 +120,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### 半合成データへの効果量注入で検出力(MDE)をキャリブレーションする
+
+![半合成データへの効果量注入から検出力曲線を実測しMDEを較正する: 注入した効果量0→2.5に対し検出率は10%→100%まで単調に上昇し、検出力80%ラインに対応する最小検出可能効果(MDE)は約1.60と推定される](../assets/model-evaluation/mde_power_curve.png)
+
+*既知の効果量を注入した半合成データを残差プールのブートストラップ再サンプリングで反復ごとに変えながら生成し、ベイズ的な平均差検定(95%信用区間が0を含まないか)をPyMCで実際に20回ずつ繰り返して検出率を実測した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: 観測データにモデルを当てて「有意な効果が検出されなかった」という結果だけでは、それが「本当に効果がない」のか「モデルの検出力が低いだけ」なのかを区別できない。
 - **対処**: 実データの季節性・過分散・対照系列との相関構造を保ったまま、既知の大きさの効果を人為的に注入した半合成データセットを複数生成し(残差のブートストラップ再サンプリングで反復ごとにノイズを変える)、効果量ごとに検出率を測定する。得られた検出力曲線から最小検出可能効果(MDE)を推定し、実データの結果をその文脈で解釈する。
