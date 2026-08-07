@@ -4,11 +4,13 @@
 
 ## 種類を選ぶフローチャート
 
-新しい分析を始めるとき、何を推定したいかから7種類のどれに当たるかを大まかに絞り込むための診断フロー。実際には複数の種類が組み合わさる場合もある(例: Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもある)ため、あくまで最初の切り分けの目安として使う。
+新しい分析を始めるとき、何を推定したいかから8種類のどれに当たるかを大まかに絞り込むための診断フロー。実際には複数の種類が組み合わさる場合もある(例: Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもある。bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある)ため、あくまで最初の切り分けの目安として使う。
 
 ```mermaid
 flowchart TD
-    Start["何を推定・分析したいか?"] --> Q1{"個々のイベントの発生時刻そのものを扱うか?<br/>(地震の余震など)"}
+    Start["何を推定・分析したいか?"] --> Q0{"特定の介入・施策の因果効果を、<br/>反実仮想(介入が無ければどうだったか)との比較で推定したいか?"}
+    Q0 -->|Yes| CI["ベイズ的因果推論<br/>Causal Inference"]
+    Q0 -->|No| Q1{"個々のイベントの発生時刻そのものを扱うか?<br/>(地震の余震など)"}
     Q1 -->|Yes| PP["点過程<br/>Point Process"]
     Q1 -->|No| Q2{"「イベントまでの時間」が目的変数で、<br/>打ち切りデータがあるか?"}
     Q2 -->|Yes| SA["生存時間分析<br/>Survival Analysis"]
@@ -23,7 +25,16 @@ flowchart TD
     Q6 -->|No| RB["ベイズ回帰・A/Bテスト"]
 ```
 
-- [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing)
+- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing)
+
+---
+
+### ベイズ的因果推論(Bayesian Causal Inference)
+
+- **定義**: ある介入・施策(広告キャンペーンなど)が実際に効果を持ったかどうかを、「介入が無かったら観測値はどう推移していたか」という反実仮想をベイズモデルで構成し、実測値との差として推定する分析。ランダム化比較試験が使えない観測データに対して、時系列の構造(トレンド・季節性)と介入の影響を受けない対照系列を手がかりに反実仮想を組み立てる(BSTS/CausalImpact型)。
+- **代表的な問い**: この介入は本当に効果があったか、それとも見かけ上の変動か。効果があったとして、その大きさはどれくらいで、どの程度自信を持って言えるか。手法自体はどの程度小さい効果まで検出できるのか(検出力)。
+- **登場プロジェクト**: [bayesian-causal-inference](https://github.com/karahashimanato/bayesian-causal-inference/blob/main/README.md)(BigQuery公開データセット、半合成デザインによる検出力キャリブレーション)
+- **関連ページ**: [tools/state-space-models.md](tools/state-space-models.md#gaussianrandomwalk時変パラメータの状態空間表現)(反実仮想の構成に使うローカルレベルトレンド) / [techniques/model-evaluation.md](techniques/model-evaluation.md#半合成データへの効果量注入で検出力mdeをキャリブレーションする)(半合成キャリブレーション、プラセボ検定) / [techniques/implementation-hacks.md](techniques/implementation-hacks.md#相関の強い状態空間パラメータではmean-fieldfullrank-adviとも分散を誤推定しうる)(ADVIの落とし穴)
 
 ---
 
