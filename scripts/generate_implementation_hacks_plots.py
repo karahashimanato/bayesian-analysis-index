@@ -19,11 +19,13 @@ Exponentialモデルの exposure_matrix を正しく(打ち切り/イベント�
 出力先: assets/implementation-hacks/*.png
 """
 
+import time
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
+import pytensor
 import pytensor.tensor as pt
 
 from plot_style import COLOR_ALT, COLOR_CHAIN, COLOR_DIVERGENT, COLOR_OK, apply_style
@@ -188,6 +190,109 @@ def plot_piecewise_exponential_exposure():
           f"naive={h0_naive.mean(axis=0).round(3).tolist()})")
 
 
+def _simulate_hawkes(rng, T_horizon, mu, kappa, beta):
+    """Ogataの間引き法で自己励起点過程(Hawkes過程)のイベント列を生成する。"""
+    t = 0.0
+    events = []
+    while True:
+        past = np.array(events)
+        lam_bar = mu + (kappa * np.exp(-beta * (t - past))).sum() if events else mu
+        t_candidate = t + rng.exponential(1.0 / lam_bar)
+        if t_candidate > T_horizon:
+            break
+        past = np.array(events)
+        lam_t = mu + (kappa * np.exp(-beta * (t_candidate - past))).sum() if events else mu
+        if rng.uniform() <= lam_t / lam_bar:
+            events.append(t_candidate)
+        t = t_candidate
+    return np.array(events)
+
+
+def _hawkes_loglik(t_obs, T_horizon, mu, kappa, beta, use_scan):
+    """Hawkes過程の対数尤度を、scan版(逐次再帰)とベクトル化版(全ペア行列)の
+    どちらでも数学的に同じ値になるように計算する。"""
+    if use_scan:
+        dt_consec = t_obs[1:] - t_obs[:-1]
+
+        def step(dt_i, S_prev, beta_ns):
+            return pt.exp(-beta_ns * dt_i) * (S_prev + 1.0)
+
+        S_rest, _ = pytensor.scan(fn=step, sequences=[dt_consec],
+                                   outputs_info=[pt.constant(0.0, dtype="float64")],
+                                   non_sequences=[beta], strict=True)
+        S = pt.concatenate([[0.0], S_rest])
+    else:
+        dt_mat = t_obs[:, None] - t_obs[None, :]
+        excitation = pt.switch(dt_mat > 0, pt.exp(-beta * dt_mat), 0.0)
+        S = pt.sum(excitation, axis=1)
+
+    lam = mu + kappa * S
+    loglik_events = pt.sum(pt.log(lam))
+    compensator = mu * T_horizon + (kappa / beta) * pt.sum(1 - pt.exp(-beta * (T_horizon - t_obs)))
+    return loglik_events - compensator
+
+
+def _build_and_sample_hawkes(t_obs, T_horizon, use_scan, seed):
+    t_obs_tensor = pt.as_tensor_variable(t_obs)
+    with pm.Model():
+        mu = pm.HalfNormal("mu", 1.0)
+        kappa = pm.HalfNormal("kappa", 1.0)
+        beta = pm.HalfNormal("beta", 2.0)
+        ll = _hawkes_loglik(t_obs_tensor, T_horizon, mu, kappa, beta, use_scan)
+        pm.Potential("loglik", ll)
+        t0 = time.perf_counter()
+        pm.sample(500, tune=500, chains=2, cores=1, target_accept=0.9,
+                  random_seed=seed, progressbar=False,
+                  compute_convergence_checks=False)
+        elapsed = time.perf_counter() - t0
+    return elapsed
+
+
+def plot_scan_vs_vectorized_hawkes():
+    """Hawkes過程の対数尤度を、pytensor.scanによる逐次再帰実装と、
+    全イベントペアの時間差行列によるベクトル化実装の2通りでPyMCモデルとして
+    実装し、同じデータ・同じサンプリング設定での実測の壁時計時間(コンパイル
+    +サンプリング)をイベント数を変えながら比較する。"""
+
+    rng = np.random.default_rng(5)
+    mu_true, kappa_true, beta_true = 0.3, 0.5, 1.0
+
+    # コンパイルキャッシュを温めておき、初回JITコンパイルのノイズを除いた
+    # 定常状態の比較にする
+    dummy = np.sort(rng.uniform(0, 10, 5))
+    _build_and_sample_hawkes(dummy, 10.0, True, 0)
+    _build_and_sample_hawkes(dummy, 10.0, False, 0)
+
+    horizons = [30, 100, 300, 600]
+    n_events_list = []
+    scan_times = []
+    vec_times = []
+    for T_horizon in horizons:
+        t_obs = _simulate_hawkes(rng, T_horizon, mu_true, kappa_true, beta_true)
+        n_events_list.append(len(t_obs))
+        scan_times.append(_build_and_sample_hawkes(t_obs, T_horizon, True, 1))
+        vec_times.append(_build_and_sample_hawkes(t_obs, T_horizon, False, 1))
+
+    fig, ax = plt.subplots(figsize=(8, 5.5))
+    x_pos = np.arange(len(horizons))
+    width_bar = 0.35
+    ax.bar(x_pos - width_bar / 2, scan_times, width=width_bar, color=COLOR_ALT, label="scan(逐次再帰, O(n))")
+    ax.bar(x_pos + width_bar / 2, vec_times, width=width_bar, color=COLOR_OK, label="ベクトル化(全ペア行列, O(n²))")
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels([f"n={n}" for n in n_events_list])
+    ax.set_ylabel("壁時計時間(コンパイル+サンプリング、秒)")
+    ax.set_title("イベント数が少ないうちはベクトル化が優位だが、\n件数が増えるとO(n²)の負荷が逆転させる")
+    ax.legend(fontsize=9)
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "scan_vs_vectorized_hawkes.png")
+    plt.close(fig)
+
+    print("scan_vs_vectorized_hawkes.png saved (" +
+          ", ".join(f"n={n}: scan={s:.2f}s vec={v:.2f}s"
+                     for n, s, v in zip(n_events_list, scan_times, vec_times)) + ")")
+
+
 if __name__ == "__main__":
     plot_advi_variance_inflation()
     plot_piecewise_exponential_exposure()
+    plot_scan_vs_vectorized_hawkes()

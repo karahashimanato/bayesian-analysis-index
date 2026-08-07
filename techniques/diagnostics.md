@@ -82,6 +82,10 @@ flowchart TD
 
 ### Divergence=0でもr_hatでしか検出できないマルチモダリティがある
 
+![チェーン長不足vs真の多峰性: draws数を増やしても、真の多峰性のケースはr_hatが1.74→1.73とほぼ変化しない(チェーン長不足のケースは1.76→1.05に改善する)](../assets/diagnostics/chain_length_vs_multimodality.png)
+
+*PyMCで実際にサンプリングした結果(生成スクリプト: [scripts/generate_diagnostics_plots.py](../scripts/generate_diagnostics_plots.py))。詳細は本ページの[chain別の平均値を比較して、真の多峰性かチェーン長不足かを切り分ける](#chain別の平均値を比較して真の多峰性かチェーン長不足かを切り分ける)を参照。*
+
 - **症状**: Divergences=0(局所的な探索は健全)にもかかわらず、r_hat=2.10のような深刻な収束の失敗が発生する。trace plotを見ると、複数のchainがそれぞれ全く異なる値(周期パラメータの候補値など)に固定されたまま、一切混ざっていない。
 - **対処**: Divergences=0という結果だけで健全性を判断せず、必ずr_hatも確認する。マルチモダリティが疑われる場合は、chainごとの推定値やtrace plotを見て、chainが別々の"谷"(局所解)に落ちて出られなくなっていないか確認する。
 - **なぜ効くか**: Divergenceは「サンプラーが局所的に破綻したか」を検出する指標であり、「複数のchainが尤度面の異なる谷に別々に収束してしまう」というグローバルな病理(マルチモダリティ)は原理的に検出できない。周期・位相を持つパラメータは特にこの問題を起こしやすい。
@@ -117,6 +121,10 @@ flowchart TD
 
 ### 離散変数はESSが低くなりやすい
 
+![変化点モデル: 離散変数tau(Compound StepでMetropolis法)のESSは連続変数lambda1/lambda2(NUTS)の約6分の1(2290 vs 14865/13439、総draws数16000)](../assets/mcmc-diagnostics/discrete_ess_gap.png)
+
+*PyMCで実際にサンプリングした結果(Poisson変化点モデル、離散パラメータtauと連続パラメータlambda1,lambda2を比較。生成スクリプト: [scripts/generate_mcmc_diagnostics_plots.py](../scripts/generate_mcmc_diagnostics_plots.py))。詳細は[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md#ess-effective-sample-size)を参照。*
+
 - **症状**: 離散変数(変化点の位置`tau`など)のESSだけが、他の連続変数より1桁近く低くなる。
 - **対処**: 可能であれば、離散変数を連続変数に緩和する(例: `switch`関数による離散的な切り替えを、シグモイド関数による滑らかな遷移に置き換え、`tau`自体を連続変数として扱う)ことでNUTSのみでサンプリング可能にする。
 - **なぜ効くか**: PyMCは離散変数に対して自動的にMetropolis法を、連続変数にはNUTSを割り当てるCompound Stepを使う。Metropolisはランダムウォーク的な提案のため自己相関が強く、同じサンプル数でも実効サンプルサイズ(ESS)が少なくなる。ただし連続緩和は新たなパラメータ(遷移の急さ等)を導入することが多く、それがfunnel等の新しい病理を生まないか別途確認が必要になる([reparameterization.md](reparameterization.md)参照)。ESSそのものの定義は[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md#ess-effective-sample-size)を参照。
@@ -125,6 +133,10 @@ flowchart TD
 ---
 
 ### オンライン方策のロックインは「探索の下限保証」の欠如を疑う
+
+![階層Thompson Samplingのロックイン: 真に最良の腕4(CTR18%だが試行数n=20)に対し、独立モデルは正しく次に選ばれる確率P(argmax p)=0.54で最有力と推すが、階層モデルは他の腕に事後分布を引っ張られてP=0.30まで下がり、試行数の多い平凡な腕3(CTR10%、n=500)をP=0.49で誤って最有力と推す](../assets/inference-methods/thompson_sampling_lockin.png)
+
+*PyMCで実際に階層Thompson Samplingをサンプリングした結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。詳細は[tools/inference-methods.md](../tools/inference-methods.md#thompson-sampling)を参照。*
 
 - **症状**: 階層ベイズ版トンプソン抽出(TS)を大規模実データで検証したところ、特定の凡庸な腕(真のCTR順位57/80)に選択が偏って自己修正しない「ロックイン」が発生し、独立版TSにも劣る結果になった。
 - **対処**: 原因を「探索の下限を保証しない実装」と特定し、確率10%で強制的にランダム選択するε-greedyミックスを導入したところロックインが解消した。
