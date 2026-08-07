@@ -42,6 +42,10 @@
 
 ### 三角関数の"中"にあるパラメータ(周波数・位相)は直交形式へ再パラメータ化する
 
+![三角関数パラメータの再パラメータ化: 極形式A・sin(ωt+φ)では位相φのペアプロットが2つのクラスタに分離しr_hat=1.73だが、直交形式β1・sin(ωt)+β2・cos(ωt)では単峰でr_hat=1.00](../assets/reparameterization/trig_reparameterization.png)
+
+*PyMCで実際にNUTSサンプリングした結果(周期7・位相の事前分布が3周期分にまたがる設定で、極形式は周期のズレ分だけ見せかけの多峰性を生む。生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
+
 - **症状**: 振幅・周期・位相を直接推定する極形式(`A*sin(2πt/T+φ)`)パラメータ化で、r_hat>2という深刻な多峰性が発生する。事前分布を締めてもむしろ悪化する。
 - **対処**: `A*sin(ωt+φ) = β1*sin(ωt) + β2*cos(ωt)`のように、三角関数の"外"にある線形係数(直交形式・Cartesian form)として書き直す。周波数 $\omega$は周期図(periodogram)などデータから外生的に固定し、 $\beta_1, \beta_2$を通常の線形パラメータとして推定する。振幅・位相は事後的に`Deterministic`で復元する。
 - **なぜ効くか**: 周期がわずかに違うだけで長い時系列全体にわたって位相が大きくズレていくため、極形式は尤度面に複数の「谷」(局所解)を作りやすい。線形係数への書き換えは、モデルの表現力を保ったまま尤度面を滑らかにし、この種の多峰性の根本原因(周波数-位相間の非線形な相互作用)を排除する。
@@ -50,6 +54,10 @@
 ---
 
 ### 比が意味を持つ量は、比自体への再パラメータ化でridge型の非識別性を緩和する
+
+![Ridge型非識別性: 元のパラメータ化(κ,β)ではκ/βにしか制約されないray状のridgeにdivergence(オレンジ)が339/8000発生するが、比M=κ/βを直接パラメータ化すると26/8000まで減少する](../assets/reparameterization/ridge_ratio_reparameterization.png)
+
+*PyMCで実際にNUTSサンプリングした結果(κ/βの比のみが尤度に制約される単純化モデルで、Hawkes過程のκ,β構造を模したもの。生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
 
 - **症状**: Hawkes過程の $\kappa$(興奮強度)と $\beta$(減衰速度)のように、2パラメータが「どちらも似た形で強度を押し上げる」関係にあると、事後分布のペアプロットに斜めのridge構造が現れ、divergenceが発生する(指数減衰カーネルを $dt\to0$近傍でテイラー展開すると $1-\beta\cdot dt$となり、 $\kappa$と $\beta$が数式レベルで同じ役割を持ってしまうことが原因)。
 - **対処**: 分岐比 $M=\kappa/\beta$のように、意味のある比そのものを独立パラメータとしてサンプルし、元のパラメータ( $\kappa=M\beta$)を`Deterministic`で導出する。

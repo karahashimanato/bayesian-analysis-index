@@ -15,6 +15,10 @@ r_hat/ESS/divergenceなど、MCMCサンプリングの健全性を測る指標�
 
 ### ESS (Effective Sample Size)
 
+![変化点モデル: 離散変数tau(Compound StepでMetropolis法)のESSは連続変数lambda1/lambda2(NUTS)の約6分の1(2290 vs 14865/13439、総draws数16000)](../assets/mcmc-diagnostics/discrete_ess_gap.png)
+
+*PyMCで実際にサンプリングした結果(Poisson変化点モデル、離散パラメータtauと連続パラメータlambda1,lambda2を比較。生成スクリプト: [scripts/generate_mcmc_diagnostics_plots.py](../scripts/generate_mcmc_diagnostics_plots.py))。*
+
 - **定義**: MCMCサンプルの自己相関を考慮した「実質的に独立とみなせるサンプル数」。サンプル数(draws)が同じでも、自己相関が強いほどESSは小さくなる。
 - **数式・仕組み**: サンプル系列の自己相関関数を積分して算出する。分布の中心付近の推定精度を表す`ess_bulk`と、裾(信用区間の端など)の推定精度を表す`ess_tail`に分けて評価されることが多い。
 - **使い分け**: サンプル数が十分でも、ESSが低ければ事後分布の推定(特に信用区間の端)の精度が実質的に不足している可能性がある。離散変数はPyMCが自動的にCompound Step(離散部分にMetropolis法)を使うため、連続変数よりESSが1桁近く低くなりやすい([techniques/diagnostics.md](../techniques/diagnostics.md#離散変数はessが低くなりやすい)参照)。

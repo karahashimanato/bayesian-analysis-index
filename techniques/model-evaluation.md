@@ -87,6 +87,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### 累積効果の分散はランダムウォークの評価期間の3乗で増える
 
+![累積効果の信用区間幅は評価期間nの1.5乗(分散はn³)で拡大する: n=7日から147日へ評価期間を伸ばすと信用区間幅は約89倍に拡大する](../assets/model-evaluation/cumulative_effect_variance_growth.png)
+
+*局所レベル(GaussianRandomWalk)モデルをPyMCで実際にサンプリングし、事後のσから累積効果をMonte Carloシミュレーションした結果(理論式と実測がほぼ一致することも確認済み。生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: BSTS(CausalImpact型)でローカルレベルトレンド(`GaussianRandomWalk`)を持つモデルの反実仮想を長期間(147日)にわたって累積すると、95%信用区間が±150を超えるほど広がり、30%という大きな注入効果ですら検出できなくなる。
 - **対処**: 累積効果を評価する期間を短く(介入直後の1〜2週間程度に)絞る。`level[t]=level[t-1]+ε_t`をn日分累積和した分散は`sigma_level²×n(n+1)(2n+1)/6`(nの3乗のオーダー)で増加するため、評価期間を147日→7日に短縮するだけで信用区間の幅は数十分の一まで縮む。
 - **なぜ効くか**: ランダムウォークの各時点の値は直前までの全ての増分を引きずっており、それをさらに長期間合計すると、個々の増分の不確実性が何重にも積み重なる。評価期間を短くすることは、この積み重なりの回数そのものを減らすことに相当する。ローカルレベルの定義そのものは[tools/state-space-models.md](../tools/state-space-models.md#gaussianrandomwalk時変パラメータの状態空間表現)を参照。
