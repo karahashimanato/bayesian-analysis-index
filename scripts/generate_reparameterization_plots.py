@@ -157,6 +157,73 @@ def plot_ridge_ratio_reparameterization():
     print(f"ridge_ratio_reparameterization.png saved (divergence: {n_div_raw}/{len(div_raw)} -> {n_div_reparam}/{len(div_reparam)})")
 
 
+def plot_noncentered_ctr_funnel():
+    """腕ごとのCTRを推定する階層ロジスティック回帰で、中心化パラメータ化が
+    funnel状のdivergenceを起こし、非中心化パラメータ化で解消することを示す。"""
+
+    rng = np.random.default_rng(3)
+    n_arms = np.array([20, 20, 18, 15, 15, 10, 10, 8, 8, 5])  # 試行回数が少ない腕を含む
+    true_mu_logit = -2.4  # 全体平均CTR ≈ 8.3%
+    true_sigma_arm = 0.15
+    J = len(n_arms)
+    theta_true = true_mu_logit + true_sigma_arm * rng.normal(size=J)
+    p_true = 1 / (1 + np.exp(-theta_true))
+    y_obs = rng.binomial(n_arms, p_true)
+
+    with pm.Model():
+        mu_logit = pm.Normal("mu_logit", -2.0, 1.0)
+        sigma_arm = pm.HalfNormal("sigma_arm", 1.0)
+        theta_logit = pm.Normal("theta_logit", mu_logit, sigma_arm, shape=J)
+        p = pm.Deterministic("p", pm.math.invlogit(theta_logit))
+        pm.Binomial("y", n=n_arms, p=p, observed=y_obs)
+        idata_centered = pm.sample(
+            2000, tune=1500, chains=4, target_accept=0.8, random_seed=0,
+            progressbar=False, compute_convergence_checks=False,
+        )
+
+    with pm.Model():
+        mu_logit = pm.Normal("mu_logit", -2.0, 1.0)
+        sigma_arm = pm.HalfNormal("sigma_arm", 1.0)
+        offset_raw = pm.Normal("offset_raw", 0.0, 1.0, shape=J)
+        theta_logit = pm.Deterministic("theta_logit", mu_logit + sigma_arm * offset_raw)
+        p = pm.Deterministic("p", pm.math.invlogit(theta_logit))
+        pm.Binomial("y", n=n_arms, p=p, observed=y_obs)
+        idata_noncentered = pm.sample(
+            2000, tune=1500, chains=4, target_accept=0.8, random_seed=0,
+            progressbar=False, compute_convergence_checks=False,
+        )
+
+    div_c = idata_centered.sample_stats["diverging"].values.flatten()
+    div_n = idata_noncentered.sample_stats["diverging"].values.flatten()
+    n_div_c, n_div_n = int(div_c.sum()), int(div_n.sum())
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharey=True)
+
+    sigma_c = idata_centered.posterior["sigma_arm"].values.flatten()
+    theta0_c = idata_centered.posterior["theta_logit"].values[:, :, 0].flatten()
+    axes[0].scatter(theta0_c[~div_c], sigma_c[~div_c], s=4, alpha=0.25, color=COLOR_OK)
+    axes[0].scatter(theta0_c[div_c], sigma_c[div_c], s=12, alpha=0.85, color=COLOR_DIVERGENT, label="divergence")
+    axes[0].set_title(f"中心化パラメータ化\nθ_1 ~ Normal(μ, σ)\ndivergence: {n_div_c}/{len(div_c)}")
+    axes[0].set_xlabel("θ_1 (腕1のlogit-CTR)")
+    axes[0].set_ylabel("σ_arm(腕間のばらつき)")
+    axes[0].legend(loc="upper right", fontsize=9, framealpha=0.9)
+
+    sigma_n = idata_noncentered.posterior["sigma_arm"].values.flatten()
+    theta0_n = idata_noncentered.posterior["theta_logit"].values[:, :, 0].flatten()
+    axes[1].scatter(theta0_n[~div_n], sigma_n[~div_n], s=4, alpha=0.25, color=COLOR_ALT)
+    axes[1].scatter(theta0_n[div_n], sigma_n[div_n], s=12, alpha=0.85, color=COLOR_DIVERGENT, label="divergence")
+    axes[1].set_title(f"非中心化パラメータ化\nθ_1 = μ + σ・offset_1\ndivergence: {n_div_n}/{len(div_n)}")
+    axes[1].set_xlabel("θ_1 (腕1のlogit-CTR)")
+    axes[1].legend(loc="upper right", fontsize=9, framealpha=0.9)
+
+    fig.suptitle("階層ロジスティック回帰(腕ごとのCTR)におけるfunnel回避", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(OUT_DIR / "noncentered_ctr_funnel.png")
+    plt.close(fig)
+    print(f"noncentered_ctr_funnel.png saved (divergence: {n_div_c}/{len(div_c)} -> {n_div_n}/{len(div_n)})")
+
+
 if __name__ == "__main__":
     plot_trig_reparameterization()
     plot_ridge_ratio_reparameterization()
+    plot_noncentered_ctr_funnel()

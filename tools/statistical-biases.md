@@ -6,6 +6,10 @@ Jensen不等式、Informative Censoring、傾向スコアなど、`techniques/`�
 
 ### Jensen不等式(Jensen's Inequality)
 
+![Jensen不等式によるロジスティック回帰の予測確率のズレ: 素朴な点推定sigmoid(β̄0+β̄1x)と事後平均E[sigmoid(β0+β1x)]は、係数の不確実性が乗る領域(x=3.7付近)で最大-0.086のズレを生む](../assets/statistical-biases/jensen_inequality_gap.png)
+
+*PyMCで実際にベイズロジスティック回帰をサンプリングした結果(n=15の小サンプルであえて係数の事後分布を広くとり、ズレを見やすくしている。生成スクリプト: [scripts/generate_statistical_biases_plots.py](../scripts/generate_statistical_biases_plots.py))。*
+
 - **定義**: 凸関数`f`について`f(E[X]) ≤ E[f(X)]`が成り立つという不等式(凹関数なら不等号は逆向き)。ベイズモデルでは、非線形なリンク関数(ロジスティック回帰のシグモイド関数など)を通した予測の期待値が、パラメータの点推定だけから素朴に計算した値とズレる原因になる。
 - **数式・仕組み**: ロジスティック回帰`p = sigmoid(β0 + β1*x)`で、`β0`の点推定(事後平均)が正しくても、`β1`の事後分布に分散があると`E[sigmoid(β0 + β1*x)] ≠ sigmoid(β0 + E[β1]*x)`となる。sigmoidは区間によって凸/凹が入れ替わる非線形関数のため、他パラメータの不確実性(分散)が加わるだけで予測平均がズレる。
 - **使い分け**: 非線形なリンク関数を持つモデルで、事前予測チェックの予測平均が「係数の点推定から素朴に計算した値」とズレていても、それ自体はバグではなくJensen不等式による正常な挙動である可能性を疑う。サンプリング後の診断だけでは気づきにくいため、事前予測チェックの段階で確認する([techniques/prior-predictive-check.md](../techniques/prior-predictive-check.md#事前予測チェックはサンプリング前に必ず実施する)参照)。

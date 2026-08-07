@@ -33,6 +33,10 @@
 
 ### 非中心化パラメータ化(non-centered parameterization)でfunnel問題を回避する
 
+![階層ロジスティック回帰(腕ごとのCTR)でのfunnel回避: 中心化パラメータ化ではσ_armの小さい領域にdivergence(オレンジ)が集中し336/8000発生するが、非中心化パラメータ化では10/8000まで減少する](../assets/reparameterization/noncentered_ctr_funnel.png)
+
+*PyMCで実際にNUTSサンプリングした結果(試行回数の少ない腕を含む10腕の階層ロジスティック回帰。生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。抽象的なNeal's funnelの定義自体は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#funnel漏斗状の病理neals-funnel)を参照。*
+
 - **症状**: 階層モデルで個々のグループ効果(腕ごとのCTRなど)を「全体平均からの分布」として直接パラメータ化(中心化パラメータ化)すると、事後分布が漏斗(funnel)状の形になり、NUTSサンプラーが不安定になる。
 - **対処**: グループ効果を `mu_logit + sigma_arm * offset_raw` のように、標準正規分布に従う `offset_raw` とスケール `sigma_arm` の積で表現する非中心化パラメータ化を採用する。
 - **なぜ効くか**: 中心化パラメータ化ではグループ効果とスケールパラメータの間に強い事後相関が生まれ、サンプラーが漏斗の狭い部分を探索しにくくなる。非中心化はこの相関を弱め、パラメータ空間の形を扱いやすくする。funnelそのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#funnel漏斗状の病理neals-funnel)を参照。

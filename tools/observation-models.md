@@ -24,6 +24,10 @@
 
 ### Beta-Binomial
 
+![階層Beta-Binomialモデルによる部分プーリング: 観測回数が少ない個体(紫、n≤15)ほど事後平均が全体平均へ強く縮小(平均|縮小幅|=0.104)し、観測回数が多い個体(黄緑〜黄、n≥300)はほぼ観測値のまま(平均|縮小幅|=0.007)](../assets/observation-models/beta_binomial_shrinkage.png)
+
+*PyMCで実際にサンプリングした結果(観測打席数10〜500の18個体を模したシミュレーション。生成スクリプト: [scripts/generate_observation_models_plots.py](../scripts/generate_observation_models_plots.py))。*
+
 - **定義**: 成功確率`p`を固定値ではなくBeta分布に従う確率変数として扱う階層モデル。個体ごとに異なる成功確率のばらつきを表現できる。
 - **数式・仕組み**: `p_i ~ Beta(α,β)`、`x_i ~ Binomial(n_i, p_i)`。`α, β`は「全体平均μ」「集中度κ」に再パラメータ化されることが多い(`α=μκ`, `β=(1-μ)κ`)。
 - **使い分け**: 個体(打者、広告群など)ごとの観測回数が異なり、個体間のばらつきそのものを階層的にモデル化・部分プーリング(shrinkage)したい場合に使う。単純なBinomial(固定p)では個体差を無視してしまう。
@@ -32,6 +36,10 @@
 ---
 
 ### Gamma-Poisson(負の二項分布相当)
+
+![Gamma-Poissonによるoverdispersion補正: 分散/平均比2.20のカウントデータに対し、Poisson固定分散モデルの95%予測区間[2,12]は実測データの88%しかカバーしないが、Gamma-Poisson階層モデルの区間[1,16]は98%をカバーする](../assets/observation-models/gamma_poisson_overdispersion.png)
+
+*PyMCで実際にサンプリングし事後予測チェック(PPC)を行った結果(生成スクリプト: [scripts/generate_observation_models_plots.py](../scripts/generate_observation_models_plots.py))。*
 
 - **定義**: Poissonの発生率`λ`を固定値ではなくGamma分布に従う確率変数として扱う階層モデル。overdispersion(分散>平均)を表現できる。
 - **数式・仕組み**: `λ_i ~ Gamma(α_conc, β)`、`x_i ~ Poisson(λ_i)`。`λ`を周辺化するとNegative Binomial分布と数学的に同値になる。
