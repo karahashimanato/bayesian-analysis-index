@@ -2,27 +2,25 @@
 
 これまで取り組んできたプロジェクトを、「何のためのベイズ分析か」という種類(ジャンル)で分類したカタログ。`techniques/`(症状/対処の教訓)・`tools/`(手段そのものの定義)がどちらも横断的な索引であるのに対し、こちらは各プロジェクトを種類ごとに束ねて全体像を見るための地図。個々の種類の中でさらに複数のモデル構造を扱う場合は、対応する`tools/`ページに詳細を譲る(例: 状態空間モデルの内訳は[tools/state-space-models.md](tools/state-space-models.md)を参照)。
 
-## 種類を選ぶフローチャート
+## 種類を見分ける特徴質問チャート
 
-新しい分析を始めるとき、何を推定したいかから8種類のどれに当たるかを大まかに絞り込むための診断フロー。実際には複数の種類が組み合わさる場合もある(例: Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもある。bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある)ため、あくまで最初の切り分けの目安として使う。
+新しい分析を始めるとき、8種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。図中の点線はそうした代表的な重複を示す。
 
 ```mermaid
-flowchart TD
-    Start["何を推定・分析したいか?"] --> Q0{"特定の介入・施策の因果効果を、<br/>反実仮想(介入が無ければどうだったか)との比較で推定したいか?"}
-    Q0 -->|Yes| CI["ベイズ的因果推論<br/>Causal Inference"]
-    Q0 -->|No| Q1{"個々のイベントの発生時刻そのものを扱うか?<br/>(地震の余震など)"}
-    Q1 -->|Yes| PP["点過程<br/>Point Process"]
-    Q1 -->|No| Q2{"「イベントまでの時間」が目的変数で、<br/>打ち切りデータがあるか?"}
-    Q2 -->|Yes| SA["生存時間分析<br/>Survival Analysis"]
-    Q2 -->|No| Q3{"生成過程を微分方程式等で<br/>明示的に記述したいか?"}
-    Q3 -->|Yes| MM["機構論的モデル<br/>Mechanistic Models"]
-    Q3 -->|No| Q4{"時間とともに変化する<br/>潜在状態を推定したいか?"}
-    Q4 -->|Yes| SSM["状態空間モデル<br/>State-Space Models"]
-    Q4 -->|No| Q5{"逐次的な意思決定や、<br/>ログからのオフ方策評価が目的か?"}
-    Q5 -->|Yes| MAB["多腕バンディット・OPE"]
-    Q5 -->|No| Q6{"複数グループ間で<br/>情報を共有したいか?"}
-    Q6 -->|Yes| HB["階層ベイズモデル<br/>Hierarchical Bayes"]
-    Q6 -->|No| RB["ベイズ回帰・A/Bテスト"]
+flowchart LR
+    Start(["何を推定・分析したいか?"])
+
+    Start -->|"介入・施策の因果効果を<br/>反実仮想との比較で推定したい"| CI["ベイズ的因果推論<br/>Causal Inference"]
+    Start -->|"個々のイベントの発生時刻<br/>そのものを扱う(地震の余震など)"| PP["点過程<br/>Point Process"]
+    Start -->|"『イベントまでの時間』が目的変数で、<br/>打ち切りデータがある"| SA["生存時間分析<br/>Survival Analysis"]
+    Start -->|"生成過程を微分方程式等で<br/>明示的に記述したい"| MM["機構論的モデル<br/>Mechanistic Models"]
+    Start -->|"時間とともに変化する<br/>潜在状態を推定したい"| SSM["状態空間モデル<br/>State-Space Models"]
+    Start -->|"逐次的な意思決定や、<br/>ログからのオフ方策評価が目的"| MAB["多腕バンディット・OPE"]
+    Start -->|"複数グループ間で<br/>情報を共有したい"| HB["階層ベイズモデル<br/>Hierarchical Bayes"]
+    Start -->|"群間比較や回帰関係を<br/>ベイズ的に評価したい"| RB["ベイズ回帰・A/Bテスト"]
+
+    CI -.重複しうる.- SSM
+    MAB -.重複しうる.- HB
 ```
 
 - [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing)
