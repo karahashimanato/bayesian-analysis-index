@@ -69,6 +69,10 @@ flowchart TD
 
 ### 変分推論(ADVI)とMCMC(NUTS)の不確実性を比較する
 
+![ADVI vs NUTS: 相関の強い2パラメータのposteriorで、NUTS(青、尾根状に広がる)に対しADVI(紫、中心の小さな塊)がSDを大きく過小評価する(実行ごとに30〜45倍程度変動)](../assets/diagnostics/advi_vs_nuts.png)
+
+*PyMCで実際にADVIとNUTSをサンプリングした結果(κ,βが強く相関するRidge型非識別性のモデルで比較。生成スクリプト: [scripts/generate_diagnostics_plots.py](../scripts/generate_diagnostics_plots.py))。*
+
 - **症状**: mean-field ADVIは高速だが、パラメータ間の相関を無視するため不確実性を過小評価しうる。
 - **対処**: ADVIとNUTSの事後分布を並べて比較し、乖離の大きさ(SDで約15倍の差が出たケースあり)を確認してから採用手法を決める。
 - **なぜ効くか**: mean-field近似は変数間の共分散を0とみなすため、相関の強いパラメータ空間では不確実性の過小評価が体系的に起こる。ADVI/NUTSそのものの定義は[tools/inference-methods.md](../tools/inference-methods.md)を参照。
@@ -87,6 +91,10 @@ flowchart TD
 
 ### chain別の平均値を比較して、真の多峰性かチェーン長不足かを切り分ける
 
+![チェーン長不足vs真の多峰性: draws数を増やすと、チェーン長不足のケースはr_hatが1.76→1.05に改善するが、真の多峰性のケースは1.74→1.73とほぼ変化しない](../assets/diagnostics/chain_length_vs_multimodality.png)
+
+*PyMCで実際にサンプリングした結果(生成スクリプト: [scripts/generate_diagnostics_plots.py](../scripts/generate_diagnostics_plots.py))。*
+
 - **症状**: Divergences=0だがr_hatが高い(例: 1.06)という結果が出たとき、マルチモダリティ(真の多峰性)なのか、単にチェーン長(tune/draws)が足りず各chainがまだ収束しきっていないだけなのか、区別がつかない。
 - **対処**: chainごとの推定値の平均を比較する。近い値に集まっていれば「チェーン長不足」の可能性が高く、tune/drawsを増やして再実行し改善するか確認する。明確に異なる値に分かれていれば真の多峰性を疑う。
 - **なぜ効くか**: マルチモダリティ(chainが別々の谷に落ちる)とチェーン長不足(chainがまだ目標分布に到達していない)は、どちらもr_hatを悪化させるが、原因も対処法も全く異なる。chain別の平均値という一手間の確認だけで、この2つを高い精度で切り分けられる。マルチモダリティそのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#マルチモダリティ多峰性)を参照。
@@ -95,6 +103,10 @@ flowchart TD
 ---
 
 ### Divergent pointsの分布パターン(局所集中 vs 分散)で病理の種類を切り分ける
+
+![Divergent pointsの分布パターン: target_accept=0.6ではdivergenceが谷全体に薄く分散する(IQR=2.13)が、target_accept=0.99ではfunnelの首に局所集中する(IQR=0.62)](../assets/diagnostics/divergent_points_pattern.png)
+
+*同一のFunnelモデルをtarget_accept違いでサンプリングした結果(生成スクリプト: [scripts/generate_diagnostics_plots.py](../scripts/generate_diagnostics_plots.py))。*
 
 - **症状**: Divergenceが発生しているが、それが構造的な非識別性(funnel等)によるものか、単にステップサイズがギリギリ足りていないだけなのか、対処の前に判断がつかない。
 - **対処**: divergent pointsがパラメータ空間のどこに現れているかを確認する。特定の隅・境界に局所集中していれば構造的な非識別性・funnelを示唆し、事後分布の主要な塊全体に薄く分散していれば単なるステップサイズ不足の可能性が高く、tune増加などで解消しやすい。

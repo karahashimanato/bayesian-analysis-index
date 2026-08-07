@@ -22,24 +22,12 @@ import numpy as np
 import pymc as pm
 import pytensor.tensor as pt
 
+from plot_style import COLOR_CHAIN, COLOR_DIVERGENT, COLOR_OK, apply_style
+
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "pathologies"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
-# 病理ドキュメント全体で色の意味を統一する
-COLOR_OK = "#4C72B0"       # 通常のドロー(非発散)
-COLOR_DIVERGENT = "#D55E00"  # divergence を起こしたドロー
-COLOR_CHAIN = ["#4C72B0", "#DD8452", "#55A868", "#C44E52"]  # chainごとの色
-
-plt.rcParams.update(
-    {
-        "figure.dpi": 150,
-        "savefig.dpi": 150,
-        "font.size": 11,
-        "axes.titlesize": 12,
-        "font.family": "IPAGothic",  # 日本語ラベルの文字化け(tofu)を防ぐ(bold書体は無いため通常太さを使用)
-        "axes.unicode_minus": False,
-    }
-)
+apply_style()
 
 
 def plot_funnel():
