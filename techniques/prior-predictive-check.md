@@ -54,3 +54,12 @@
 - **対処**: 極値(min/max)に加えて、現実的な範囲に入る割合や信用区間の幅で事前分布の妥当性を判断する。
 - **なぜ効くか**: 極値は外れ値1つでも動くため、分布全体の健全性の指標としては弱い。
 - **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#得られた方法論的な学び)
+
+---
+
+### GPのprior predictive checkは、ハイパーパラメータドローの包絡線がデータのスケールを覆うかで確認する
+
+- **症状**: ガウス過程回帰では、カーネルの長さスケール(`ell`)・振幅(`eta`)・観測ノイズ(`sigma`)といったハイパーパラメータの事前分布を勘で決めると、生成される関数が実データのスケールに対して滑らかすぎたり暴れすぎたりする。
+- **対処**: ハイパーパラメータを事前分布から50回程度ドローし、それぞれで得られる関数のprior predictive分布を実データに重ねて、包絡線が観測データのスケール(世界平均気温偏差なら-0.5〜+1.3℃、Mauna Loa CO2濃度偏差なら±20ppmなど)を覆いつつ暴走していないかを目視確認する。
+- **なぜ効くか**: GPの事前分布は個々のハイパーパラメータの数値だけでは直感的に評価しづらく、実際に関数をサンプルして描画することで初めて「この長さスケール・振幅の組み合わせが生成する関数の形」を具体的に検証できる。標準RBFカーネルと複合カーネル(トレンド+季節周期)の双方で同じ確認手順を踏んだ。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#標準rbfカーネル-世界平均気温偏差) / [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#複合カーネル-mauna-loa-co2濃度)

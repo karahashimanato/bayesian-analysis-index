@@ -8,8 +8,8 @@
 
 - **定義**: 単位時間・単位区間あたりに起こる離散イベントの回数をモデル化する分布。平均と分散が等しい(equidispersion)という制約を持つ。
 - **数式・仕組み**: `P(k) = λ^k * e^{-λ} / k!`。連続時間モデル(SIR/SIS/SIRSなど)では、状態変数の予測値(感染者数I(t)など)を`λ`とするPoisson尤度で観測データと結びつけることが多い。
-- **使い分け**: 観測プロセスが同一(同じ記録方法)である複数の観測変数には分布族を統一する。分散が平均を大きく上回る(overdispersion)場合は[Gamma-Poisson](#gamma-poisson負の二項分布相当)への切り替えを検討する。実際、SIRモデルでは「分散=平均」という制約が、急峻なピーク高さの過小評価に寄与した可能性が確認されている。
-- **登場プロジェクト**: [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sir-eyamペスト流行1666)
+- **使い分け**: 観測プロセスが同一(同じ記録方法)である複数の観測変数には分布族を統一する。分散が平均を大きく上回る(overdispersion)場合は[Gamma-Poisson](#gamma-poisson負の二項分布相当)への切り替えを検討する。実際、SIRモデルでは「分散=平均」という制約が、急峻なピーク高さの過小評価に寄与した可能性が確認されている。ガウス過程回帰の潜在関数`f(x)`に対して`y ~ Poisson(exp(f(x)))`のように結びつける非ガウス尤度としても使われ、この場合は`pm.gp.Marginal`の解析的周辺化が使えず、潜在関数を明示的にサンプリングする必要がある([tools/inference-methods.md](inference-methods.md#pmgplatent--hsgp基底関数近似)参照)。
+- **登場プロジェクト**: [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sir-eyamペスト流行1666) / [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
 
 ---
 

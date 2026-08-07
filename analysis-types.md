@@ -18,12 +18,13 @@ flowchart LR
     Start -->|"逐次的な意思決定や、<br/>ログからのオフ方策評価が目的"| MAB["多腕バンディット・OPE"]
     Start -->|"複数グループ間で<br/>情報を共有したい"| HB["階層ベイズモデル<br/>Hierarchical Bayes"]
     Start -->|"群間比較や回帰関係を<br/>ベイズ的に評価したい"| RB["ベイズ回帰・A/Bテスト"]
+    Start -->|"入力から出力への関数形を、<br/>パラメトリックな形を仮定せず推定したい"| GP["ガウス過程回帰<br/>Gaussian Process"]
 
     CI -.重複しうる.- SSM
     MAB -.重複しうる.- HB
 ```
 
-- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing)
+- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression)
 
 ---
 
@@ -96,3 +97,12 @@ flowchart LR
 - **代表的な問い**: どちらの群が優れている確率はどれくらいか。説明変数と目的変数の関係はどんな形か(線形か、非線形か)。
 - **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#分析の流れnotebooks)(Beta-Binomial CVR比較、ロジスティック回帰、P-スプライン)
 - **関連ページ**: [tools/observation-models.md](tools/observation-models.md#beta-binomial)(Beta-Binomial) / [tools/statistical-biases.md](tools/statistical-biases.md#jensen不等式jensens-inequality)(Jensen不等式) / [tools/inference-methods.md](tools/inference-methods.md#advi--mean-field変分推論svi)(ADVI/NUTS比較)
+
+---
+
+### ガウス過程回帰(Gaussian Process Regression)
+
+- **定義**: 入力から出力への関数形をあらかじめ固定のパラメトリックな式(線形・多項式など)で仮定せず、「関数そのもの」に事前分布(ガウス過程)を置いてベイズ推定するノンパラメトリックな回帰。関数の滑らかさ・周期性・トレンドといった性質はカーネル(共分散関数)の設計を通じて表現する。
+- **代表的な問い**: 観測データを滑らかに補間・平滑化する関数はどんな形か。その関数を観測範囲外まで延長(外挿)したとき、どこまで信頼できるか。トレンド・季節性のような複数の構造を、カーネルの組み合わせでどう分離するか。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md)(標準RBFカーネル/複合カーネル/非ガウス尤度(Poisson)/スパースGPの4ケーススタディ)
+- **関連ページ**: [tools/inference-methods.md](tools/inference-methods.md#pmgpmarginalgpの解析的周辺化)(pm.gp.Marginal/HSGP/VFEの使い分け) / [tools/posterior-pathologies.md](tools/posterior-pathologies.md#ridge型非識別性)(平均関数とGPの交絡、基底関数近似のスケール退化) / [techniques/model-evaluation.md](techniques/model-evaluation.md#カーネル近似手法ごとに外挿での挙動が全く異なるため観測域内の当てはまりとは別に外挿時の振る舞いを確認する)(外挿挙動の評価)

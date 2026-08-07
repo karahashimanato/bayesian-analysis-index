@@ -63,6 +63,7 @@
 | [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md) | 多腕バンディット・オフ方策評価、階層ベイズモデル比較 | ✅ |
 | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md) | ベイズ時系列・階層モデル・点過程の学習ジャーナル(旧markov-regime-switching) | ✅ |
 | [bayesian-causal-inference](https://github.com/karahashimanato/bayesian-causal-inference/blob/main/README.md) | BigQuery公開データセットを用いたBSTS因果推論、半合成デザインによる検出力キャリブレーション | ✅ |
+| [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md) | PyMCによるベイズ・ガウス過程(GP)モデリング。標準RBF/複合カーネル/非ガウス尤度(Poisson)/スパースGPの4ケーススタディ | ✅ |
 
 ## 運用ルール
 

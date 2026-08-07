@@ -25,8 +25,8 @@ funnel・ridge型非識別性・ラベルスイッチング・マルチモダリ
 
 - **定義**: 2つ以上のパラメータが、互いに打ち消し合う/補い合う形で尤度にほぼ同じ影響を与えるため、事後分布のペアプロットに(円形の等高線ではなく)斜めに伸びた尾根(ridge)状の強い相関構造が現れる非識別性。
 - **数式・仕組み**: 例えばHawkes過程の`κ`(興奮強度)と`β`(減衰速度)は、指数減衰カーネルを`dt→0`近傍でテイラー展開するとどちらも同じ1次の項として現れ、数式レベルで似た役割を持つ。このため「`κ`を上げて`β`も上げる」方向には尤度がほとんど変化せず、その方向に沿って事後分布が細長く伸びる。
-- **使い分け**: 意味のある比(`M=κ/β`)そのものを独立パラメータとして再パラメータ化すると、ridge構造の"沿う方向"を1つのパラメータに集約でき、冗長な方向をサンプラーが探索する必要がなくなる([techniques/reparameterization.md](../techniques/reparameterization.md#比が意味を持つ量は比自体への再パラメータ化でridge型の非識別性を緩和する)参照)。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
+- **使い分け**: 意味のある比(`M=κ/β`)そのものを独立パラメータとして再パラメータ化すると、ridge構造の"沿う方向"を1つのパラメータに集約でき、冗長な方向をサンプラーが探索する必要がなくなる([techniques/reparameterization.md](../techniques/reparameterization.md#比が意味を持つ量は比自体への再パラメータ化でridge型の非識別性を緩和する)参照)。同種の構造は、ガウス過程回帰で平均関数`mu`とGPの低周波成分が交絡するケースや、基底関数近似(HSGP)で振幅`eta`を大きくしながら基底係数を比例的に小さくすると尤度が際限なく上がる(有界なridgeではなく発散方向を持つ)ケースにも現れる。後者は`mu`を固定定数にする・基底関数数を絞るといった「モデルの自由度を削る」対応で緩和した([techniques/reparameterization.md](../techniques/reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas) / [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
 
 ---
 

@@ -54,3 +54,30 @@
 - **数式・仕組み**: 独立版は各腕ごとに独立な[Beta-Binomial](observation-models.md#beta-binomial)(Beta-Bernoulli)事後分布を持つ。階層版は腕間で情報を共有する階層ベイズモデルの事後分布からサンプルする。
 - **使い分け**: 階層版は腕間の情報共有によりMAEを改善できる一方、収縮バイアスや、事後分布の確信が強まりすぎて探索が止まる「ロックイン」を起こしうる。ロックインは「探索の下限を保証する」仕組み(ε-greedyミックスなど)を別途組み合わせて対策する([techniques/diagnostics.md](../techniques/diagnostics.md#オンライン方策のロックインは探索の下限保証の欠如を疑う)参照)。
 - **登場プロジェクト**: [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#notebook構成)
+
+---
+
+### `pm.gp.Marginal`(GPの解析的周辺化)
+
+- **定義**: ガウス尤度のGP回帰で、潜在関数`f`を明示的にサンプリングせず解析的に周辺化(積分消去)し、カーネルのハイパーパラメータ(長さスケール`ell`、振幅`eta`、観測ノイズ`sigma`)だけをNUTSでサンプリングする厳密GP推論。
+- **数式・仕組み**: `f ~ GP(0, k)`、`y ~ Normal(f(x), sigma)`というガウス尤度・ガウス過程の組み合わせでは、`f`を積分消去した周辺尤度が解析的に閉形式で書ける(共役性)。計算コストはカーネル行列(N×N)の逆行列計算に由来しO(N³)。
+- **使い分け**: ガウス尤度・厳密GPを使う場合の基本選択。O(N³)のため数百〜千点を超えると非現実的になる(Mauna Loa CO2濃度の例では全68年分・821点をそのまま使うと4chain分のNUTSサンプリングに数時間かかる見込みが判明し、直近150ヶ月・150点に絞った)。非ガウス尤度には使えない([pm.gp.Latent + HSGP](#pmgplatent--hsgp基底関数近似)参照)。大規模データには[pm.gp.MarginalApprox(VFE)](#pmgpmarginalapproxvfe誘導点近似スパースgp)を検討する。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#標準rbfカーネル-世界平均気温偏差) / [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#複合カーネル-mauna-loa-co2濃度)
+
+---
+
+### `pm.gp.Latent` + HSGP(基底関数近似)
+
+- **定義**: ガウス尤度以外の尤度(Poissonなど)でGPを使う場合に、潜在関数`f`を明示的な確率変数としてサンプリングする手法。厳密な`pm.gp.Latent`は計算コストが高いため、有限個の大域基底関数の線形結合でGPを近似するHSGP(Hilbert Space GP)を通常組み合わせる。
+- **数式・仕組み**: `f(x) ≈ Σ_j √S(√λ_j)・φ_j(x)・β_j`のように、有限個(`m`個)の基底関数`φ_j`の線形結合で近似し、係数`β_j`を標準正規分布に従う確率変数としてサンプリングする。
+- **使い分け**: Poissonなど非ガウス尤度を使う場合の標準的な選択。基底関数数`m`を増やしすぎると、振幅`eta`を大きくしながら基底係数を比例的に小さくすることで尤度を際限なく上げられる退化(非識別性)を起こしうるため、`m`を絞る・平均関数を固定するといった対応が必要になる場合がある([techniques/reparameterization.md](../techniques/reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。有限個の大域基底関数で近似するため、学習データ域外への外挿はHSGPの近似構造そのものに起因して不安定になりうる(多項式回帰同様の限界)。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
+
+---
+
+### `pm.gp.MarginalApprox`(VFE、誘導点近似・スパースGP)
+
+- **定義**: 厳密GPのO(N³)の計算コストを、少数の誘導点(inducing points)による変分近似(VFE, Variational Free Energy)でO(N・M²)に削減するスパースGP手法。
+- **数式・仕組み**: 全データ点の代わりに`M`個の誘導点(`pm.gp.util.kmeans_inducing_points`などで自動配置)を経由してGPを近似する。VFE尤度は`pm.Potential`として実装されており、通常の観測確率変数`y_obs`を持たないため、`pm.sample_prior_predictive`のような標準APIがそのままでは使えない([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#pmgpmarginalapproxのvfe尤度はpotential実装のためsample_prior_predictiveが使えない)参照)。
+- **使い分け**: 大規模データ(千〜万点規模)にガウス尤度のGPを適用したい場合の選択肢。誘導点数`M`の選定自体が新たなチューニング対象になる(M=150では勾配1回の評価に約0.11秒かかるのに対しM=25では約0.01秒と、実測コストが理論上のO(N・M)より`M`に敏感)。厳密カーネルに基づくVFE近似は、[HSGP](#pmgplatent--hsgp基底関数近似)(大域基底関数近似)より外挿の安定性で優れることが実証されている。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#スパースgp-nyc日次気温データ)

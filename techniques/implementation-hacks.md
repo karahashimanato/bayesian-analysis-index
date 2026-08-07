@@ -122,3 +122,30 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 - **症状**: Piecewise Exponentialモデルで、各対象が実際に通過した時間区間ごとのベースラインハザードを正しく積算する必要がある(完全通過した区間と、途中で終わる最後の区間とで扱いが異なる)。
 - **対処**: 各対象 × 各区間の滞在時間(完全通過なら区間幅、最後の区間なら端数)を表す行列 `exposure_matrix` を構築し、`H_i = pt.dot(exposure_matrix, h0) * hazard_ratio` で累積ハザードを積算してから対数尤度を計算する。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#診断実装における重要ハック)
+
+---
+
+### Jupyterカーネル内での`cores>1`マルチプロセスはハングしうるため`cores=1`を既定にする
+
+- **症状**: `pm.sample(..., cores=4)`をJupyterカーネル(nbconvert経由の実行)内で動かすと、単体スクリプトでは問題ないはずのマルチプロセスサンプリングが1800秒経ってもハングし続けた。
+- **対処**: `cores=1`(chainsを逐次実行)に切り替える。同条件で258秒で正常終了し、以降の全ノートブックでも`cores=1`をデフォルトに採用した。
+- **なぜ効くか**: Jupyterカーネルのマルチプロセス起動(fork/spawn)がnbconvert実行環境と衝突する既知の相性問題であり、原因の深追いよりも`cores=1`固定という運用ルールで確実に回避する方を優先した。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#標準rbfカーネル-世界平均気温偏差)
+
+---
+
+### `progressbar=True`のリッチ表示はJupyterカーネル経由だと大きなオーバーヘッドになる
+
+- **症状**: `pm.sample`のデフォルト`progressbar=True`によるリッチなプログレスバー表示が、Jupyterカーネル経由の実行(nbconvert)では無視できないオーバーヘッドになると判明した。
+- **対処**: `progressbar=False`に切り替える。
+- **なぜ効くか**: リッチ表示は端末への頻繁な再描画を伴うため、通常のスクリプト実行では問題にならない負荷が、Jupyterカーネルの出力パイプ越しでは顕在化する。`cores=1`と同様、Jupyterカーネル特有の運用上の落とし穴として全4ケースで採用した。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
+
+---
+
+### `pm.gp.MarginalApprox`のVFE尤度は`Potential`実装のため`sample_prior_predictive`が使えない
+
+- **症状**: `pm.gp.MarginalApprox.marginal_likelihood`(誘導点近似・VFE)はVFE尤度を`pm.Potential`として実装しており、通常の観測確率変数`y_obs`を持たない。そのため①②で使えていた`pm.sample_prior_predictive`がそのままでは`y_obs`を見つけられずKeyErrorになる。
+- **対処**: 間引いたグリッド上で厳密カーネル(近似前のカーネル関数)を手動評価し、prior predictiveを代替実装する。
+- **なぜ効くか**: `pm.Potential`はモデルに任意の対数密度項を加える仕組みであり、ArviZ/PyMCの標準APIが前提とする「観測確率変数」の形を持たない。これは本ページ冒頭の「`pm.Potential`では対数尤度が自動保存されない」という既知の制約と同根であり、`Potential`ベースの尤度実装では標準APIの機能(LOO計算、prior predictive等)がそのままでは使えず個別に代替実装が必要になる、という共通パターンの一例。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#スパースgp-nyc日次気温データ)

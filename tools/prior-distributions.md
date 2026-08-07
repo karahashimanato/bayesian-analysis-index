@@ -26,7 +26,7 @@
 - **代表的な事前分布**: `HalfNormal`、`HalfCauchy`、`Gamma(alpha>1, beta)`
 - **選び方のコツ**: そのパラメータが「分散・強度を分母的に決める」役割(Gamma-Poissonの集中度、階層モデルのグループ間分散など)を持つ場合、`Exponential`のように0付近に確率密度の山を持つ分布を使うと、まれに0に近い値を引いて分散が爆発するリスクがある。0での密度がゼロになる分布族(`Gamma(alpha>1,...)`)を選ぶと、この経路を構造的に塞げる([techniques/prior-predictive-check.md](../techniques/prior-predictive-check.md#分母のパラメータが0に近づくと分散が発散する病理は分布族を問わず繰り返す)参照)。
 - **落とし穴**: PyMCの`pm.HalfNormal(lower=, upper=)`のように、存在しない引数を渡してもエラーにならず黙って無視される実装上の罠がある。範囲を制約したい場合は分布の引数ではなく別の方法(truncation等)で実現する必要がある。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#nile川-ベイズ変化点分析)(Nile) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#サメ襲撃件数-階層ベイズgamma-poisson)(サメ)
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#nile川-ベイズ変化点分析)(Nile) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#サメ襲撃件数-階層ベイズgamma-poisson)(サメ) / [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#標準rbfカーネル-世界平均気温偏差)(GPカーネルの長さスケール`ell`は数十年スケールの滑らかな変化を想定して`Gamma(alpha=5, beta=1)`、振幅`eta`・観測ノイズ`sigma`は観測振れ幅に応じて`HalfNormal`)
 
 ---
 

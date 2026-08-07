@@ -54,3 +54,12 @@
 - **対処**: `pm.Potential`で対数尤度を直接記述する。積分項は、強度関数のカーネルが指数減衰など解析的に積分可能な形であれば、解析解をそのままコードに書き下ろす。
 - **なぜ効くか**: PyMCの確率分布は「既知の分布族の対数密度」を前提にしているため、点過程のように尤度が総和と積分の組み合わせで表現される場合は、`pm.Potential`で任意のスカラー(対数尤度)をモデルに加える仕組みを使うしかない。MSMのforward algorithmと同じ「既製の分布に押し込めない尤度は`pm.Potential`で書く」という設計パターンの一例。Hawkes過程そのものの定義は[tools/observation-models.md](../tools/observation-models.md#hawkes過程点過程の尤度)を参照。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
+
+---
+
+### 非ガウス尤度でGPを使う場合は、解析的周辺化を諦めて潜在関数を明示的にサンプリングする
+
+- **症状**: ガウス尤度のGP回帰(`y ~ Normal(f(x), sigma)`)では`pm.gp.Marginal`により潜在関数`f`を解析的に周辺化(積分消去)し、ハイパーパラメータだけをサンプリングできるが、Poissonのような非ガウス尤度(`y ~ Poisson(exp(f(x)))`)ではこの周辺化に使う共役性が成り立たず、同じ手法が使えない。
+- **対処**: `pm.gp.Latent`(または大規模データでは基底関数近似の`pm.gp.HSGP`)に切り替え、潜在関数`f`自体を明示的な確率変数としてモデルに含め、NUTSでハイパーパラメータと`f`を同時にサンプリングする。
+- **なぜ効くか**: 解析的周辺化はガウス尤度という共役性に依存する数学的トリックであり、尤度が非ガウスになるとその閉形式が失われる。潜在関数を明示的にサンプリングする分だけ計算コストが増え、平均関数との交絡や基底関数近似特有の退化といった新たな非識別性のリスクも生じる([techniques/reparameterization.md](reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。GPの推論手法そのものの定義は[tools/inference-methods.md](../tools/inference-methods.md#pmgpmarginalgpの解析的周辺化)を参照。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
