@@ -37,6 +37,10 @@ r_hat/ESS/divergenceなど、MCMCサンプリングの健全性を測る指標�
 
 ### target_accept
 
+![Neal's funnelでtarget_accept=0.8→0.99にすると、divergence数は20→3に大きく減るが、ESS(v)は42→25に低下する](../assets/mcmc-diagnostics/target_accept_tradeoff.png)
+
+*PyMCで実際にNeal's funnel(急峻に曲がった事後分布)をtarget_accept=0.8/0.99の2通りでサンプリングした結果(生成スクリプト: [scripts/generate_mcmc_diagnostics_plots.py](../scripts/generate_mcmc_diagnostics_plots.py))。*
+
 - **定義**: NUTSサンプラーがステップサイズを自動調整する際の目標受理率(acceptance rate)。デフォルトは0.8前後で、1に近づけるほどステップサイズが小さくなり、1ステップあたりの数値積分が慎重になる。
 - **数式・仕組み**: warmup(tuning)期間中、実際の受理率が`target_accept`に近づくようステップサイズを適応的に調整するデュアル平均化アルゴリズムを使う。`target_accept`を上げるとステップサイズが小さくなり、急峻な領域でも[divergence](#divergence発散)を起こしにくくなる代わりに、1ステップあたりの移動距離が小さくなり同じdraws数での[ESS](#ess-effective-sample-size)が下がりうる。
 - **使い分け**: divergenceを減らす簡易な対症療法として使う。ただしdivergenceが減ってもESS/r_hatが悪化していれば、モデルの構造的な問題(非識別性・パラメータ化)自体は解消していないサインであり、根本対処(再パラメータ化)と使い分ける必要がある([techniques/diagnostics.md](../techniques/diagnostics.md#表面的改善と根本問題の解決を区別する)参照)。

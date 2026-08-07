@@ -5,6 +5,9 @@ tools/mcmc-diagnostics.md に埋め込む可視化画像を生成するスクリ
 Compound StepでMetropolis法が使われる)のESSが連続変数(Poisson率)より
 低くなりやすいことを描画する。
 
+また、Neal's funnel(急峻に曲がった事後分布)をtarget_accept=0.8/0.99の
+2通りでサンプリングし、divergence数とESSがどうトレードオフするかを描画する。
+
 実行方法:
     source .venv/bin/activate
     python scripts/generate_mcmc_diagnostics_plots.py
@@ -78,5 +81,59 @@ def plot_discrete_ess_gap():
           f"lambda2={ess_l2:.0f}, total_draws={total_draws})")
 
 
+def plot_target_accept_tradeoff():
+    """Neal's funnel(急峻に曲がった事後分布)をtarget_accept=0.8/0.99の
+    2通りでサンプリングし、divergence数の減少とESSの変化を比較する。"""
+
+    D = 9
+
+    def build_model():
+        with pm.Model() as model:
+            v = pm.Normal("v", 0, 3)
+            pm.Normal("x", 0, pt.exp(v / 2), shape=D)
+        return model
+
+    results = {}
+    for ta in [0.8, 0.99]:
+        model = build_model()
+        with model:
+            idata = pm.sample(2000, tune=1500, chains=4, target_accept=ta,
+                               random_seed=5, progressbar=False,
+                               compute_convergence_checks=False)
+        n_div = int(idata.sample_stats["diverging"].sum())
+        ess_v = float(az.ess(idata, var_names=["v"])["v"].values)
+        results[ta] = (n_div, ess_v)
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+    tas = [0.8, 0.99]
+    divs = [results[ta][0] for ta in tas]
+    esss = [results[ta][1] for ta in tas]
+    colors = [COLOR_ALT, COLOR_OK]
+
+    axes[0].bar([str(ta) for ta in tas], divs, color=colors, alpha=0.85)
+    axes[0].set_xlabel("target_accept")
+    axes[0].set_ylabel("divergence数(全chain合計)")
+    axes[0].set_title("divergence数")
+    for i, d in enumerate(divs):
+        axes[0].text(i, d, f"{d}", ha="center", va="bottom", fontsize=10)
+
+    axes[1].bar([str(ta) for ta in tas], esss, color=colors, alpha=0.85)
+    axes[1].set_xlabel("target_accept")
+    axes[1].set_ylabel("ESS (v, ess_bulk)")
+    axes[1].set_title("ESS")
+    for i, e in enumerate(esss):
+        axes[1].text(i, e, f"{e:.0f}", ha="center", va="bottom", fontsize=10)
+
+    fig.suptitle("Neal's funnelでtarget_accept=0.8→0.99にすると\n"
+                  f"divergenceは{divs[0]}→{divs[1]}に減るが、ESSは{esss[0]:.0f}→{esss[1]:.0f}")
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "target_accept_tradeoff.png")
+    plt.close(fig)
+    print(f"target_accept_tradeoff.png saved "
+          f"(0.8: divergence={divs[0]}, ess={esss[0]:.0f} / "
+          f"0.99: divergence={divs[1]}, ess={esss[1]:.0f})")
+
+
 if __name__ == "__main__":
     plot_discrete_ess_gap()
+    plot_target_accept_tradeoff()

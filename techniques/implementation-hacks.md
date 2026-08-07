@@ -111,6 +111,10 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 
 ### 区間ごとの滞在時間行列で累積ハザードを積算する
 
+![exposure_matrixの誤り(最後の区間も丸ごと通過したとみなす)は、各区間のベースラインハザード推定を過小評価させる。特に最後の区間(真値0.35)で正しいexposure_matrixの推定0.373に対し誤ったものは0.254と最も大きくズレる](../assets/implementation-hacks/piecewise_exponential_exposure.png)
+
+*PyMCで実際に2種類のPiecewise Exponentialモデル(正しいexposure_matrix/誤ったexposure_matrix)をフィットし、各区間のベースラインハザードh0の事後平均を比較した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: Piecewise Exponentialモデルで、各対象が実際に通過した時間区間ごとのベースラインハザードを正しく積算する必要がある(完全通過した区間と、途中で終わる最後の区間とで扱いが異なる)。
 - **対処**: 各対象 × 各区間の滞在時間(完全通過なら区間幅、最後の区間なら端数)を表す行列 `exposure_matrix` を構築し、`H_i = pt.dot(exposure_matrix, h0) * hazard_ratio` で累積ハザードを積算してから対数尤度を計算する。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#診断実装における重要ハック)

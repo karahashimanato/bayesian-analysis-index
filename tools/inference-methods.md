@@ -24,6 +24,10 @@
 
 ### Compound Step
 
+![変化点モデル: 離散変数tau(Compound StepでMetropolis法)のESSは連続変数lambda1/lambda2(NUTS)の約6分の1(2290 vs 14865/13439、総draws数16000)](../assets/mcmc-diagnostics/discrete_ess_gap.png)
+
+*PyMCで実際にサンプリングした結果(Poisson変化点モデル、離散パラメータtauと連続パラメータlambda1,lambda2を比較。生成スクリプト: [scripts/generate_mcmc_diagnostics_plots.py](../scripts/generate_mcmc_diagnostics_plots.py))。詳細は[tools/mcmc-diagnostics.md](mcmc-diagnostics.md#ess-effective-sample-size)を参照。*
+
 - **定義**: PyMCが、1つのモデルの中に離散変数と連続変数が混在する場合に自動的に採用する、変数の種類ごとに異なるサンプラーを組み合わせる仕組み。
 - **数式・仕組み**: 連続変数には[NUTS](#nuts-no-u-turn-sampler)、離散変数にはMetropolis法を個別に割り当て、1イテレーション内で両方のステップを順に実行する。
 - **使い分け**: 離散パラメータ(変化点の位置など)を含むモデルで自動的に発動する。Metropolisはランダムウォーク的な提案のため自己相関が強く、同じサンプル数でも離散変数のESSが連続変数より1桁近く低くなりやすい。離散変数を連続変数に緩和できれば(シグモイド近似など)NUTSのみでサンプリングでき、この問題を回避できる([tools/mcmc-diagnostics.md](mcmc-diagnostics.md#ess-effective-sample-size)参照)。
