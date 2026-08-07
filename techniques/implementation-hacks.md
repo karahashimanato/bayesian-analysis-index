@@ -96,6 +96,15 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 
 ---
 
+### 相関の強い状態空間パラメータではmean-field/fullrank ADVIとも分散を誤推定しうる
+
+- **症状**: 219次元の`GaussianRandomWalk`(強く相関したローカルレベルトレンド)を含むBSTSモデルをmean-field ADVIでフィットすると、`sigma_level`の事後推定値がNUTSの結果(約0.06)の2〜3倍(0.15〜0.19)に膨らむ。fullrank ADVIに切り替えても改善せず、同じイテレーション数(30000)ではむしろAverage Lossが悪化した(18→139、収束していない)。
+- **対処**: NUTSに切り替える。219日規模のモデルであれば1回あたり数秒〜十数秒で収束するため、繰り返し試行(キャリブレーションなど)でも実用上の速度上の問題はなかった。
+- **なぜ効くか**: mean-field ADVIは各パラメータの独立性を仮定するが、`GaussianRandomWalk`の各時点の値は本来強く相関している。この相関を表現できない分を`sigma_level`(スケールパラメータ)の膨張で埋め合わせようとするため、周辺事後分布が過大評価される。fullrank ADVIは相関を表現できる代わりに推定すべき共分散パラメータ数が次元の2乗のオーダーで増え、同じイテレーション数では収束しきらない。
+- **登場プロジェクト**: [bayesian-causal-inference](https://github.com/karahashimanato/bayesian-causal-inference/blob/main/README.md#学び)
+
+---
+
 ### 区間ごとの滞在時間行列で累積ハザードを積算する
 
 - **症状**: Piecewise Exponentialモデルで、各対象が実際に通過した時間区間ごとのベースラインハザードを正しく積算する必要がある(完全通過した区間と、途中で終わる最後の区間とで扱いが異なる)。
