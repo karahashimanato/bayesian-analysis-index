@@ -17,6 +17,8 @@ import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
+import pytensor
+import pytensor.tensor as pt
 
 from plot_style import COLOR_ALT, COLOR_DIVERGENT, COLOR_OK, apply_style
 
@@ -406,9 +408,91 @@ def plot_mde_power_curve():
           f", MDE≈{mde:.2f})")
 
 
+def _kalman_loglik(y_obs, mu, phi, sigma_level, obs_sigma, P0=25.0):
+    """AR(1)型local levelモデルの周辺尤度をKalmanフィルタで計算する。
+    潜在状態(level)を解析的に周辺化するため、非中心化パラメータ化を
+    使わずとも divergence を起こさない(funnelを構造的に回避できる)。"""
+    sigma_level2 = sigma_level ** 2
+    obs_sigma2 = obs_sigma ** 2
+
+    def step(y_t, level_prev, P_prev, mu_ns, phi_ns, sl2_ns, os2_ns):
+        level_pred = mu_ns + phi_ns * (level_prev - mu_ns)
+        P_pred = phi_ns ** 2 * P_prev + sl2_ns
+        F = P_pred + os2_ns
+        v = y_t - level_pred
+        loglik_t = -0.5 * pt.log(2 * np.pi * F) - 0.5 * v ** 2 / F
+        K = P_pred / F
+        level_filt = level_pred + K * v
+        P_filt = P_pred * (1 - K)
+        return level_filt, P_filt, loglik_t
+
+    (_, _, loglik_seq), _ = pytensor.scan(
+        fn=step,
+        sequences=[y_obs],
+        outputs_info=[mu, pt.constant(P0, dtype="float64"), None],
+        non_sequences=[mu, phi, sigma_level2, obs_sigma2],
+        strict=True,
+    )
+    return pt.sum(loglik_seq)
+
+
+def plot_ar1_phi_persistence():
+    """真のデータ生成過程が純粋なランダムウォーク(平均回帰なし)である
+    データに対し、平均回帰を許すAR(1)型local levelモデル(Kalmanフィルタで
+    周辺化、divergenceなしの健全な事後分布)を評価期間n=60とn=150の両方で
+    実際にサンプリングする。事前分布Beta(2,2)は0.5を中心に置いているにも
+    かかわらず、phi(平均回帰の速さ、1に近いほどランダムウォークに近い)の
+    事後分布はどちらの評価期間でも1側に寄り、期間を伸ばすほど1により強く
+    張り付く(n=60: 平均0.761→n=150: 平均0.952)ことを示す。"""
+
+    rng = np.random.default_rng(21)
+    true_sigma_level = 0.5
+    obs_sigma_true = 1.0
+
+    def fit(n_pre, seed):
+        level = np.cumsum(rng.normal(0, true_sigma_level, n_pre))
+        y = level + rng.normal(0, obs_sigma_true, n_pre)
+        with pm.Model():
+            mu_level = pm.Normal("mu_level", y.mean(), 5.0)
+            phi = pm.Beta("phi", 2, 2)
+            sigma_level = pm.HalfNormal("sigma_level", 1.0)
+            obs_sigma = pm.HalfNormal("obs_sigma", 1.0)
+            ll = _kalman_loglik(pt.as_tensor_variable(y), mu_level, phi, sigma_level, obs_sigma)
+            pm.Potential("loglik", ll)
+            idata = pm.sample(1500, tune=2000, chains=4, target_accept=0.95,
+                               random_seed=seed, progressbar=False,
+                               compute_convergence_checks=False)
+        return idata.posterior["phi"].values.flatten(), int(idata.sample_stats["diverging"].sum())
+
+    phi_60, div_60 = fit(60, 2)
+    phi_150, div_150 = fit(150, 3)
+
+    fig, ax = plt.subplots(figsize=(7.5, 5.5))
+    ax.hist(phi_60, bins=50, density=True, color=COLOR_ALT, alpha=0.55,
+            label=f"評価期間n=60日(事後平均={phi_60.mean():.3f})")
+    ax.hist(phi_150, bins=50, density=True, color=COLOR_OK, alpha=0.55,
+            label=f"評価期間n=150日(事後平均={phi_150.mean():.3f})")
+    ax.axvline(0.5, color="black", lw=1.5, ls="--", label="事前分布の中心(Beta(2,2))")
+    ax.axvline(1.0, color=COLOR_DIVERGENT, lw=1.5, ls=":", label="phi=1(純粋なランダムウォーク)")
+    ax.set_xlabel("phi(平均回帰の速さ)")
+    ax.set_ylabel("density")
+    ax.set_xlim(0, 1.05)
+    ax.set_title("真のDGPがランダムウォークだと、評価期間を伸ばすほど\n"
+                 "事前分布の中心(0.5)によらずphiの事後分布が1側へ強く張り付く")
+    ax.legend(fontsize=8.5, loc="upper left")
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "ar1_phi_persistence.png")
+    plt.close(fig)
+
+    print(f"ar1_phi_persistence.png saved "
+          f"(n=60: phi平均={phi_60.mean():.3f} divergence={div_60}, "
+          f"n=150: phi平均={phi_150.mean():.3f} divergence={div_150})")
+
+
 if __name__ == "__main__":
     plot_cumulative_effect_variance_growth()
     plot_cindex_brier_independence()
     plot_placebo_false_positive_rate()
     plot_loo_dse_comparison()
     plot_mde_power_curve()
+    plot_ar1_phi_persistence()
