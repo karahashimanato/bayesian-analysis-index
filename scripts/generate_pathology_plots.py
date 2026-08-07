@@ -2,8 +2,8 @@
 tools/posterior-pathologies.md に埋め込む可視化画像を生成するスクリプト。
 
 PyMC で実際に NUTS サンプリングを実行し、divergence や r_hat といった
-本物の診断結果に基づいて Funnel・Ridge型非識別性・マルチモダリティの
-3病理を描画する。
+本物の診断結果に基づいて Funnel・Ridge型非識別性・ラベルスイッチング・
+マルチモダリティの4病理を描画する。
 
 実行方法:
     python3 -m venv .venv
@@ -20,6 +20,7 @@ import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
+import pytensor.tensor as pt
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "pathologies"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -133,6 +134,73 @@ def plot_ridge():
     print(f"ridge.png saved (corr={corr:.3f})")
 
 
+def plot_label_switching():
+    """対称な2成分混合モデルで生じるラベルスイッチングを可視化する。
+
+    順序制約なしだと、chainごとに「どちらの成分をmu[0]と呼ぶか」が
+    ランダムに決まり、r_hatが悪化する。さらに素朴にmu[0]の事後平均を
+    取ると、2つの真の値の中間に潰れて意味を失うことを示す。
+    """
+
+    rng = np.random.default_rng(1)
+    n = 150
+    true_mu = np.array([-2.5, 2.5])
+    z = rng.integers(0, 2, n)
+    y = rng.normal(true_mu[z], 0.8, n)
+
+    def sample(order_constrained: bool):
+        with pm.Model():
+            w = pm.Dirichlet("w", a=np.ones(2))
+            mu = pm.Normal("mu", 0.0, 5.0, shape=2)
+            if order_constrained:
+                # mu[0] < mu[1] を強制し、対称な2つのモードの片方だけを残す
+                pm.Potential("order", pt.switch(mu[0] < mu[1], 0.0, -np.inf))
+            sigma = pm.HalfNormal("sigma", 1.0)
+            comps = [pm.Normal.dist(mu[i], sigma) for i in range(2)]
+            pm.Mixture("obs", w=w, comp_dists=comps, observed=y)
+            return pm.sample(
+                1000, tune=1000, chains=4, target_accept=0.9,
+                random_seed=1, progressbar=False,
+            )
+
+    idata_free = sample(order_constrained=False)
+    idata_ordered = sample(order_constrained=True)
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5), sharex=True)
+
+    mu_free = idata_free.posterior["mu"].values  # (chain, draw, 2)
+    for c in range(mu_free.shape[0]):
+        axes[0].hist(mu_free[c, :, 0], bins=30, color=COLOR_CHAIN[c % len(COLOR_CHAIN)],
+                     alpha=0.5, label=f"chain {c}: mu[0]")
+    pooled_mean = mu_free[:, :, 0].mean()
+    axes[0].axvline(pooled_mean, color="black", linestyle="-", linewidth=1.5,
+                     label=f"素朴な事後平均: {pooled_mean:.2f}(潰れて無意味)")
+    for tm in true_mu:
+        axes[0].axvline(tm, color="black", linestyle=":", linewidth=1)
+    rhat_free = float(az.rhat(idata_free, var_names=["mu"])["mu"].values[0])
+    axes[0].set_title(f"順序制約なし\n(r_hat[mu[0]]={rhat_free:.2f})")
+    axes[0].set_xlabel("mu[0]")
+    axes[0].legend(loc="upper center", fontsize=7.5, framealpha=0.9)
+
+    mu_ordered = idata_ordered.posterior["mu"].values
+    for c in range(mu_ordered.shape[0]):
+        axes[1].hist(mu_ordered[c, :, 0], bins=30, color=COLOR_CHAIN[c % len(COLOR_CHAIN)],
+                     alpha=0.5, label=f"chain {c}: mu[0]")
+    for tm in true_mu:
+        axes[1].axvline(tm, color="black", linestyle=":", linewidth=1, label="真の値" if tm == true_mu[0] else None)
+    rhat_ordered = float(az.rhat(idata_ordered, var_names=["mu"])["mu"].values[0])
+    axes[1].set_title(f"順序制約あり(mu[0] < mu[1])\n(r_hat[mu[0]]={rhat_ordered:.2f})")
+    axes[1].set_xlabel("mu[0]")
+    axes[1].legend(loc="upper left", fontsize=8, framealpha=0.9)
+
+    fig.suptitle("ラベルスイッチング(Label Switching): 対称な2成分混合モデル", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(OUT_DIR / "label_switching.png")
+    plt.close(fig)
+    print(f"label_switching.png saved (r_hat free={rhat_free:.2f}, ordered={rhat_ordered:.2f}, "
+          f"pooled naive mean={pooled_mean:.2f})")
+
+
 def plot_multimodality():
     """周期パラメータ(位相)に起因するマルチモダリティを可視化する。
 
@@ -194,4 +262,5 @@ def plot_multimodality():
 if __name__ == "__main__":
     plot_funnel()
     plot_ridge()
+    plot_label_switching()
     plot_multimodality()
