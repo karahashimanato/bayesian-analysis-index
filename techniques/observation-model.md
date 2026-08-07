@@ -24,6 +24,10 @@
 
 ### 右側打ち切りを尤度に直接組み込む
 
+![打ち切り(46%が打ち切り)を無視して全観測をイベントとして扱うと、生存確率を過小評価する(ハザードを過大評価する)。真のλ=0.05に対し、打ち切りを正しく組み込んだモデルの事後平均λ=0.0393(過小評価だが真値に近い)に対し、打ち切りを無視したナイーブなモデルはλ=0.0727と大きく過大評価する](../assets/observation-model/censoring_bias.png)
+
+*PyMCで実際に指数分布ハザードの生存時間モデルを2通り(`pm.Potential`で打ち切りを正しく組み込み/打ち切りを無視して全観測をイベント扱い)フィットし、生存曲線を比較した結果(生成スクリプト: [scripts/generate_observation_model_plots.py](../scripts/generate_observation_model_plots.py))。*
+
 - **症状**: 生存時間分析でイベント未発生(打ち切り)のデータを単純に除外・打ち切り時刻をイベント時刻として扱うと、生存確率を過小評価する。
 - **対処**: `pm.Potential` を用いて統一対数尤度 `event_i・log h(t_i) + log S(t_i)` を直接実装し、イベント有無で対数尤度の項を切り替える。
 - **なぜ効くか**: 打ち切り観測は「少なくともここまでは生存していた」という下限情報を持つため、尤度に正しく組み込むことでバイアスを避けられる。
@@ -32,6 +36,10 @@
 ---
 
 ### 離散潜在状態はforward algorithmで周辺化し`pm.Potential`に組み込む
+
+![2レジームMarkov-Switchingモデルをforward algorithmで周辺化した尤度でPyMCフィットし、推定パラメータ(mu=[0.19, 2.92]、真値は[0, 3])から復元したP(レジーム1)は真のレジームの切り替わりとほぼ一致し、時点ごとのレジーム判定精度は94.7%だった](../assets/observation-model/markov_switching_forward_algorithm.png)
+
+*合成データ(自己遷移確率0.95/0.90の2レジームHMM)に対し、`pytensor.scan`によるforward algorithmで周辺化した対数尤度を`pm.Potential`としてNUTSでフィットし、推定パラメータからforward algorithmで復元したレジーム確率と真のレジームを比較した結果(生成スクリプト: [scripts/generate_observation_model_plots.py](../scripts/generate_observation_model_plots.py))。*
 
 - **症状**: Markov-Switching Modelのようにレジーム(離散潜在状態 $S_t$)を持つモデルは、 $S_t$を直接MCMCでサンプリングしようとすると離散変数のHMC/NUTSが扱いづらく、Compound Step(離散部分はMetropolis)によりESSが著しく低下する。
 - **対処**: $S_t$自体をサンプリングせず、forward algorithmで各時点の状態確率分布を`pytensor.scan`で逐次更新し、対数周辺尤度を`pm.Potential`としてモデルに直接加える。連続パラメータ(遷移確率・平均・分散)だけをNUTSでサンプリングすればよい形に変換する。

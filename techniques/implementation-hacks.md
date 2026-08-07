@@ -98,6 +98,10 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 
 ### 相関の強い状態空間パラメータではmean-field/fullrank ADVIとも分散を誤推定しうる
 
+![強く相関したGaussianRandomWalk(T=80のローカルレベルモデル)で、真のsigma_level=0.3に対しNUTSの事後平均は0.410(過大評価だが真値に近い)なのに対し、mean-field ADVIは1.419、fullrank ADVIも1.229と、いずれもNUTSの3倍前後に過大評価する](../assets/implementation-hacks/advi_variance_inflation.png)
+
+*PyMCで実際に同一のローカルレベルモデルをNUTS・mean-field ADVI・fullrank ADVIの3通りでフィットし、sigma_levelの事後分布を比較した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: 219次元の`GaussianRandomWalk`(強く相関したローカルレベルトレンド)を含むBSTSモデルをmean-field ADVIでフィットすると、`sigma_level`の事後推定値がNUTSの結果(約0.06)の2〜3倍(0.15〜0.19)に膨らむ。fullrank ADVIに切り替えても改善せず、同じイテレーション数(30000)ではむしろAverage Lossが悪化した(18→139、収束していない)。
 - **対処**: NUTSに切り替える。219日規模のモデルであれば1回あたり数秒〜十数秒で収束するため、繰り返し試行(キャリブレーションなど)でも実用上の速度上の問題はなかった。
 - **なぜ効くか**: mean-field ADVIは各パラメータの独立性を仮定するが、`GaussianRandomWalk`の各時点の値は本来強く相関している。この相関を表現できない分を`sigma_level`(スケールパラメータ)の膨張で埋め合わせようとするため、周辺事後分布が過大評価される。fullrank ADVIは相関を表現できる代わりに推定すべき共分散パラメータ数が次元の2乗のオーダーで増え、同じイテレーション数では収束しきらない。
