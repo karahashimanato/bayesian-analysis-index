@@ -15,11 +15,14 @@ tools/state-space-models.md に埋め込む可視化画像を生成するスク�
 
 from pathlib import Path
 
+import arviz as az
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
+import pytensor
+import pytensor.tensor as pt
 
-from plot_style import COLOR_ALT, COLOR_DIVERGENT, COLOR_OK, apply_style
+from plot_style import COLOR_ALT, COLOR_CHAIN, COLOR_DIVERGENT, COLOR_OK, apply_style
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "state-space-models"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -153,6 +156,171 @@ def plot_process_obs_noise_nonidentifiability():
           f"sd(sum)={total.std():.3f})")
 
 
+def plot_changepoint_tau_recovery():
+    """変化点モデルを実際にPyMCでサンプリングし、離散パラメータtauの事後分布が
+    真の変化点付近に集まること、および区間ごとの平均レベルmu1/mu2が正しく
+    復元されることを示す。"""
+
+    rng = np.random.default_rng(11)
+    T = 80
+    true_tau = 40
+    mu1_true, mu2_true = 2.0, 3.2
+    sigma_true = 2.0
+
+    t = np.arange(T)
+    mu_t_true = np.where(t < true_tau, mu1_true, mu2_true)
+    y = mu_t_true + rng.normal(0, sigma_true, T)
+
+    with pm.Model():
+        tau = pm.DiscreteUniform("tau", lower=1, upper=T - 2)
+        mu1 = pm.Normal("mu1", 0, 10)
+        mu2 = pm.Normal("mu2", 0, 10)
+        sigma = pm.HalfNormal("sigma", 5)
+        mu_t = pm.math.switch(t < tau, mu1, mu2)
+        pm.Normal("y", mu=mu_t, sigma=sigma, observed=y)
+        idata = pm.sample(2000, tune=2000, chains=4, target_accept=0.9,
+                           random_seed=1, progressbar=False,
+                           compute_convergence_checks=False)
+
+    tau_draws = idata.posterior["tau"].values.flatten()
+    tau_mode = int(np.bincount(tau_draws).argmax())
+    mu1_est = float(idata.posterior["mu1"].values.mean())
+    mu2_est = float(idata.posterior["mu2"].values.mean())
+    ess_tau = float(az.ess(idata, var_names=["tau"])["tau"].values)
+    ess_mu1 = float(az.ess(idata, var_names=["mu1"])["mu1"].values)
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+
+    axes[0].scatter(t, y, s=10, alpha=0.5, color="black", label="観測データ")
+    axes[0].step(t, mu_t_true, where="post", color=COLOR_DIVERGENT, lw=2, label="真の水準")
+    mu_t_est = np.where(t < tau_mode, mu1_est, mu2_est)
+    axes[0].step(t, mu_t_est, where="post", color=COLOR_OK, lw=2, ls="--",
+                 label=f"推定水準(tau={tau_mode})")
+    axes[0].set_xlabel("t")
+    axes[0].set_ylabel("y")
+    axes[0].set_title("データと推定された変化点前後の水準")
+    axes[0].legend(fontsize=8.5)
+
+    axes[1].hist(tau_draws, bins=np.arange(1, T - 1) - 0.5, color=COLOR_ALT, alpha=0.7)
+    axes[1].axvline(true_tau, color=COLOR_DIVERGENT, lw=2, ls="--", label=f"真のtau={true_tau}")
+    axes[1].set_xlabel("tau(変化点の時点)")
+    axes[1].set_ylabel("頻度")
+    axes[1].set_title(f"tauの事後分布(ESS={ess_tau:.0f})\n連続パラメータmu1のESS={ess_mu1:.0f}")
+    axes[1].legend(fontsize=9)
+
+    fig.suptitle("変化点モデル: tauの事後分布と区間ごとの水準の復元", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT_DIR / "changepoint_tau_recovery.png")
+    plt.close(fig)
+
+    print(f"changepoint_tau_recovery.png saved "
+          f"(true_tau={true_tau}, tau_mode={tau_mode}, mu1={mu1_est:.2f}(true {mu1_true}), "
+          f"mu2={mu2_est:.2f}(true {mu2_true}), ess_tau={ess_tau:.0f}, ess_mu1={ess_mu1:.0f})")
+
+
+def plot_markov_switching_transition_recovery():
+    """2レジームMarkov-Switchingモデルをforward algorithm周辺化尤度で
+    実際にPyMCでサンプリングし、遷移確率(レジームの持続性)とレジームごとの
+    平均を復元できることを示す。順序制約(mu1=mu0+gap, gap>0)でラベル
+    スイッチングを回避する。"""
+
+    rng = np.random.default_rng(5)
+    T = 300
+    p_stay0_true, p_stay1_true = 0.95, 0.90
+    mu0_true, mu1_true = 0.0, 3.0
+    sigma_true = 1.0
+
+    regime = np.zeros(T, dtype=int)
+    for i in range(1, T):
+        if regime[i - 1] == 0:
+            regime[i] = 0 if rng.uniform() < p_stay0_true else 1
+        else:
+            regime[i] = 1 if rng.uniform() < p_stay1_true else 0
+    mu_t_true = np.where(regime == 0, mu0_true, mu1_true)
+    y = mu_t_true + rng.normal(0, sigma_true, T)
+
+    def forward_loglik(y_obs, p_stay0, p_stay1, mu0, mu1, sigma):
+        e0 = pt.exp(-0.5 * ((y_obs - mu0) / sigma) ** 2) / (sigma * pt.sqrt(2 * np.pi))
+        e1 = pt.exp(-0.5 * ((y_obs - mu1) / sigma) ** 2) / (sigma * pt.sqrt(2 * np.pi))
+
+        pi0 = (1 - p_stay1) / (2 - p_stay0 - p_stay1)
+        pi1 = 1 - pi0
+        alpha0_init = pi0 * e0[0]
+        alpha1_init = pi1 * e1[0]
+        c0 = alpha0_init + alpha1_init
+        alpha0_init, alpha1_init = alpha0_init / c0, alpha1_init / c0
+
+        def step(e0_t, e1_t, alpha0_prev, alpha1_prev, p_stay0_ns, p_stay1_ns):
+            pred0 = alpha0_prev * p_stay0_ns + alpha1_prev * (1 - p_stay1_ns)
+            pred1 = alpha1_prev * p_stay1_ns + alpha0_prev * (1 - p_stay0_ns)
+            a0, a1 = pred0 * e0_t, pred1 * e1_t
+            c_t = a0 + a1
+            return a0 / c_t, a1 / c_t, pt.log(c_t)
+
+        (_, _, loglik_seq), _ = pytensor.scan(
+            fn=step, sequences=[e0[1:], e1[1:]],
+            outputs_info=[alpha0_init, alpha1_init, None],
+            non_sequences=[p_stay0, p_stay1], strict=True,
+        )
+        return pt.log(c0) + pt.sum(loglik_seq)
+
+    with pm.Model():
+        p_stay0 = pm.Beta("p_stay0", 2, 2)
+        p_stay1 = pm.Beta("p_stay1", 2, 2)
+        mu0 = pm.Normal("mu0", 0, 5)
+        gap = pm.HalfNormal("gap", 5)  # 順序制約: mu1=mu0+gap>mu0 でラベルスイッチングを回避
+        mu1 = pm.Deterministic("mu1", mu0 + gap)
+        sigma = pm.HalfNormal("sigma", 3)
+
+        ll = forward_loglik(pt.as_tensor_variable(y), p_stay0, p_stay1, mu0, mu1, sigma)
+        pm.Potential("loglik", ll)
+
+        idata = pm.sample(1500, tune=2000, chains=4, target_accept=0.95,
+                           random_seed=3, progressbar=False,
+                           compute_convergence_checks=False)
+
+    n_div = int(idata.sample_stats["diverging"].sum())
+    p0_est = float(idata.posterior["p_stay0"].values.mean())
+    p1_est = float(idata.posterior["p_stay1"].values.mean())
+    mu0_est = float(idata.posterior["mu0"].values.mean())
+    mu1_est = float(idata.posterior["mu1"].values.mean())
+
+    fig, axes = plt.subplots(1, 2, figsize=(11.5, 5))
+
+    axes[0].fill_between(np.arange(T), y.min() - 1, y.max() + 1, where=(regime == 1),
+                          color=COLOR_ALT, alpha=0.15, step="post", label="真のレジーム1")
+    axes[0].plot(np.arange(T), y, color="black", lw=0.8, alpha=0.7)
+    axes[0].set_xlabel("t")
+    axes[0].set_ylabel("y")
+    axes[0].set_ylim(y.min() - 1, y.max() + 1)
+    axes[0].set_title("観測データと真のレジーム(網掛け)")
+    axes[0].legend(fontsize=8.5, loc="upper right")
+
+    labels = ["p_stay0", "p_stay1", "mu0", "mu1"]
+    true_vals = [p_stay0_true, p_stay1_true, mu0_true, mu1_true]
+    est_vals = [p0_est, p1_est, mu0_est, mu1_est]
+    x_pos = np.arange(len(labels))
+    width = 0.35
+    axes[1].bar(x_pos - width / 2, true_vals, width=width, color="black", alpha=0.7, label="真値")
+    axes[1].bar(x_pos + width / 2, est_vals, width=width, color=COLOR_OK, label="事後平均")
+    axes[1].set_xticks(x_pos)
+    axes[1].set_xticklabels(labels)
+    axes[1].set_title(f"遷移確率・レジーム平均の復元\n(divergence={n_div})")
+    axes[1].legend(fontsize=9)
+
+    fig.suptitle("Markov-Switching Model: forward algorithmによる周辺化推定", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT_DIR / "markov_switching_transition_recovery.png")
+    plt.close(fig)
+
+    print(f"markov_switching_transition_recovery.png saved "
+          f"(divergence={n_div}, p_stay0={p0_est:.3f}(true {p_stay0_true}), "
+          f"p_stay1={p1_est:.3f}(true {p_stay1_true}), mu0={mu0_est:.3f}(true {mu0_true}), "
+          f"mu1={mu1_est:.3f}(true {mu1_true}))")
+
+
 if __name__ == "__main__":
     plot_gaussian_random_walk_amplitude()
     plot_process_obs_noise_nonidentifiability()
+    plot_changepoint_tau_recovery()
+    plot_markov_switching_transition_recovery()

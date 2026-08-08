@@ -6,6 +6,10 @@
 
 ### 変化点モデル(Changepoint Model)
 
+![変化点モデル: tauの事後分布は真の変化点(t=40)付近に集まる(最頻値t=47)が、連続パラメータmu1/mu2のESS(1973)に比べ離散パラメータtauのESS(475)は約1/4に低下する](../assets/state-space-models/changepoint_tau_recovery.png)
+
+*PyMCで実際にサンプリングした結果(区間ごとの水準mu1=2.0→mu2=3.2が切り替わるデータに対しDiscreteUniform事前分布のtauをフィット。生成スクリプト: [scripts/generate_state_space_models_plots.py](../scripts/generate_state_space_models_plots.py))。*
+
 - **定義**: 時系列のある未知の時点(変化点)の前後で、モデルのパラメータ(平均水準など)が切り替わると仮定する状態空間モデル。
 - **数式・仕組み**: 変化点位置`τ`を離散一様分布(`DiscreteUniform`)からサンプリングし、`switch`関数で`t<τ`と`t≥τ`の2つのパラメータ値を切り替える。離散変数`τ`はPyMCのCompound Stepの対象になりESSが低下しやすいため、シグモイド関数で滑らかに遷移させる連続緩和がよく使われる。
 - **使い分け**: 「ある時点を境に構造が変わった」という明確な仮説がある時系列(ダム建設前後の河川流量など)に使う。連続緩和した場合、遷移の急峻さを表す新パラメータが加わり、それが[funnel](posterior-pathologies.md#funnel漏斗状の病理neals-funnel)等の新しい病理を生まないか別途確認が必要になる。
@@ -40,6 +44,10 @@
 ---
 
 ### Markov-Switching Model(レジームスイッチング状態空間)
+
+![Markov-Switching Model: forward algorithmで周辺化した尤度をPyMCで実際にサンプリングし、遷移確率(持続性p_stay0=0.959/p_stay1=0.855、真値0.95/0.90)とレジーム平均(mu0=-0.01/mu1=2.962、真値0/3.0)をdivergence=0で復元する](../assets/state-space-models/markov_switching_transition_recovery.png)
+
+*2レジームMarkov-Switchingモデルを、順序制約(mu1=mu0+gap>mu0)でラベルスイッチングを回避しつつ実際にサンプリングした結果(生成スクリプト: [scripts/generate_state_space_models_plots.py](../scripts/generate_state_space_models_plots.py))。ラベルスイッチングそのものの定義は[tools/posterior-pathologies.md](posterior-pathologies.md#ラベルスイッチングlabel-switching)を参照。*
 
 - **定義**: 観測データの生成過程が離散的な「レジーム」(平時/危機など)によって切り替わり、レジーム自体も時間とともに(マルコフ連鎖に従って)遷移すると仮定する状態空間モデル。
 - **数式・仕組み**: 各時点のレジーム`S_t`はマルコフ連鎖(`P(S_t | S_{t-1})`の遷移確率行列)に従って遷移し、観測はレジームごとに異なるパラメータ(平均・分散など)を持つ分布から生成される。離散潜在状態`S_t`自体はforward algorithmで周辺化して推定することが多い([tools/observation-models.md](observation-models.md#forward-algorithm離散潜在状態の周辺化尤度)参照)。
