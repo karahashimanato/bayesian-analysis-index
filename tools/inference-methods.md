@@ -89,8 +89,8 @@
 
 - **定義**: ガウス尤度以外の尤度(Poissonなど)でGPを使う場合に、潜在関数`f`を明示的な確率変数としてサンプリングする手法。厳密な`pm.gp.Latent`は計算コストが高いため、有限個の大域基底関数の線形結合でGPを近似するHSGP(Hilbert Space GP)を通常組み合わせる。
 - **数式・仕組み**: `f(x) ≈ Σ_j √S(√λ_j)・φ_j(x)・β_j`のように、有限個(`m`個)の基底関数`φ_j`の線形結合で近似し、係数`β_j`を標準正規分布に従う確率変数としてサンプリングする。
-- **使い分け**: Poissonなど非ガウス尤度を使う場合の標準的な選択。基底関数数`m`を増やしすぎると、振幅`eta`を大きくしながら基底係数を比例的に小さくすることで尤度を際限なく上げられる退化(非識別性)を起こしうるため、`m`を絞る・平均関数を固定するといった対応が必要になる場合がある([techniques/reparameterization.md](../techniques/reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。有限個の大域基底関数で近似するため、学習データ域外への外挿はHSGPの近似構造そのものに起因して不安定になりうる(多項式回帰同様の限界)。
-- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
+- **使い分け**: Poissonなど非ガウス尤度を使う場合の標準的な選択。基底関数数`m`を増やしすぎると、振幅`eta`を大きくしながら基底係数を比例的に小さくすることで尤度を際限なく上げられる退化(非識別性)を起こしうるため、`m`を絞る・平均関数を固定するといった対応が必要になる場合がある([techniques/reparameterization.md](../techniques/reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。有限個の大域基底関数で近似するため、学習データ域外への外挿はHSGPの近似構造そのものに起因して不安定になりうる(多項式回帰同様の限界)。非ガウス尤度でなくとも、長さスケールの事後がグリッド間隔に対して短い領域に迷い込み厳密GP(`pm.gp.Latent`)の共分散行列が悪条件化する場合、`pm.gp.HSGP`は共分散行列そのものを構成しないため数値的な安定性の面でも有効な代替になる([tools/posterior-pathologies.md](posterior-pathologies.md#gpの共分散行列悪条件化によるサンプリング停止divergenceに現れない病理)参照)。
+- **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数) / [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-3-空間点過程lgcp能登半島地震)(LGCP、`pm.gp.Latent`→`pm.gp.HSGP`で実行時間100分超→7秒)
 
 ---
 

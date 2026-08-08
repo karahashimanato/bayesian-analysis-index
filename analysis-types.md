@@ -4,7 +4,7 @@
 
 ## 種類を見分ける特徴質問チャート
 
-新しい分析を始めるとき、8種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。図中の点線はそうした代表的な重複を示す。
+新しい分析を始めるとき、10種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。図中の点線はそうした代表的な重複を示す。
 
 ```mermaid
 flowchart LR
@@ -19,12 +19,14 @@ flowchart LR
     Start -->|"複数グループ間で<br/>情報を共有したい"| HB["階層ベイズモデル<br/>Hierarchical Bayes"]
     Start -->|"群間比較や回帰関係を<br/>ベイズ的に評価したい"| RB["ベイズ回帰・A/Bテスト"]
     Start -->|"入力から出力への関数形を、<br/>パラメトリックな形を仮定せず推定したい"| GP["ガウス過程回帰<br/>Gaussian Process"]
+    Start -->|"隣接構造や連続空間上の位置に<br/>依存する空間相関を推定したい"| SP["空間モデル<br/>Spatial Models"]
 
     CI -.重複しうる.- SSM
     MAB -.重複しうる.- HB
+    SP -.重複しうる.- PP
 ```
 
-- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression)
+- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression) / [空間モデル](#空間モデルspatial-models)
 
 ---
 
@@ -106,3 +108,12 @@ flowchart LR
 - **代表的な問い**: 観測データを滑らかに補間・平滑化する関数はどんな形か。その関数を観測範囲外まで延長(外挿)したとき、どこまで信頼できるか。トレンド・季節性のような複数の構造を、カーネルの組み合わせでどう分離するか。
 - **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md)(標準RBFカーネル/複合カーネル/非ガウス尤度(Poisson)/スパースGPの4ケーススタディ)
 - **関連ページ**: [tools/inference-methods.md](tools/inference-methods.md#pmgpmarginalgpの解析的周辺化)(pm.gp.Marginal/HSGP/VFEの使い分け) / [tools/posterior-pathologies.md](tools/posterior-pathologies.md#ridge型非識別性)(平均関数とGPの交絡、基底関数近似のスケール退化) / [techniques/model-evaluation.md](techniques/model-evaluation.md#カーネル近似手法ごとに外挿での挙動が全く異なるため観測域内の当てはまりとは別に外挿時の振る舞いを確認する)(外挿挙動の評価)
+
+---
+
+### 空間モデル(Spatial Models)
+
+- **定義**: 隣接する地区・領域(行政区画など)間、あるいは連続空間上の近い位置同士が似た値を持ちやすいという空間相関を、隣接グラフの精度行列やガウス過程で明示的にモデル化する分析。エリアデータ(隣接構造を持つ集計データ)・空間時系列(エリア×時間)・連続空間上のイベント(点過程)の3類型がある。
+- **代表的な問い**: ある地区の値(罹患率など)は、隣接地区の情報も借りるとどう補正されるか。観測されたばらつきのうち、隣接地区間で共有される空間構造に由来する部分と、地区固有の非構造的なばらつきに由来する部分をどう分離するか。空間パターンは時間とともにどう変化するか。連続空間上のイベント(地震の震源など)はどこに集中しやすいか。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md)(ICAR→BYM→BYM2によるスコットランド口唇癌の疾病マッピング、Knorr-Held型空間時系列BYMによるオハイオ州COVID-19、LGCPによる能登半島地震の空間強度場推定)
+- **関連ページ**: [tools/spatial-models.md](tools/spatial-models.md)(ICAR・BYM・BYM2・空間時系列BYM・LGCPの内訳はこちらに独立してまとめている) / [tools/posterior-pathologies.md](tools/posterior-pathologies.md#ridge型非識別性)(BYMのθ/φ非識別性) / [techniques/reparameterization.md](techniques/reparameterization.md#bymのθφ分離の非識別性はbym2のσρ再パラメータ化で解消する)(BYM2への再パラメータ化)

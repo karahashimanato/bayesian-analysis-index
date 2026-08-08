@@ -25,8 +25,8 @@ funnel・ridge型非識別性・ラベルスイッチング・マルチモダリ
 
 - **定義**: 2つ以上のパラメータが、互いに打ち消し合う/補い合う形で尤度にほぼ同じ影響を与えるため、事後分布のペアプロットに(円形の等高線ではなく)斜めに伸びた尾根(ridge)状の強い相関構造が現れる非識別性。
 - **数式・仕組み**: 例えばHawkes過程の`κ`(興奮強度)と`β`(減衰速度)は、指数減衰カーネルを`dt→0`近傍でテイラー展開するとどちらも同じ1次の項として現れ、数式レベルで似た役割を持つ。このため「`κ`を上げて`β`も上げる」方向には尤度がほとんど変化せず、その方向に沿って事後分布が細長く伸びる。
-- **使い分け**: 意味のある比(`M=κ/β`)そのものを独立パラメータとして再パラメータ化すると、ridge構造の"沿う方向"を1つのパラメータに集約でき、冗長な方向をサンプラーが探索する必要がなくなる([techniques/reparameterization.md](../techniques/reparameterization.md#比が意味を持つ量は比自体への再パラメータ化でridge型の非識別性を緩和する)参照)。同種の構造は、ガウス過程回帰で平均関数`mu`とGPの低周波成分が交絡するケースや、基底関数近似(HSGP)で振幅`eta`を大きくしながら基底係数を比例的に小さくすると尤度が際限なく上がる(有界なridgeではなく発散方向を持つ)ケースにも現れる。後者は`mu`を固定定数にする・基底関数数を絞るといった「モデルの自由度を削る」対応で緩和した([techniques/reparameterization.md](../techniques/reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。
-- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas) / [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
+- **使い分け**: 意味のある比(`M=κ/β`)そのものを独立パラメータとして再パラメータ化すると、ridge構造の"沿う方向"を1つのパラメータに集約でき、冗長な方向をサンプラーが探索する必要がなくなる([techniques/reparameterization.md](../techniques/reparameterization.md#比が意味を持つ量は比自体への再パラメータ化でridge型の非識別性を緩和する)参照)。同種の構造は、ガウス過程回帰で平均関数`mu`とGPの低周波成分が交絡するケースや、基底関数近似(HSGP)で振幅`eta`を大きくしながら基底係数を比例的に小さくすると尤度が際限なく上がる(有界なridgeではなく発散方向を持つ)ケースにも現れる。後者は`mu`を固定定数にする・基底関数数を絞るといった「モデルの自由度を削る」対応で緩和した([techniques/reparameterization.md](../techniques/reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。空間統計のBYMモデルにおける非構造項`θ`と空間構造項`φ`の分散パラメータ(`σ_θ`,`σ_φ`)も同型で、「どちらの成分がどれだけを説明しているか」は決まりにくいが「両者の合計」はよく識別される、という点でも一致する([tools/spatial-models.md](spatial-models.md#bymbesag-york-mollié)参照)。
+- **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas) / [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数) / [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#1-bymの非識別性θφの分離が決まりにくい)(σ_θ,σ_φの事後相関-0.31)
 
 ---
 
@@ -53,3 +53,12 @@ funnel・ridge型非識別性・ラベルスイッチング・マルチモダリ
 - **数式・仕組み**: 周期パラメータの候補値がわずかに異なると、長い時系列全体にわたって位相が大きくズレていくため、尤度面に複数の「谷」(局所解)ができやすい。複数チェーンがそれぞれ異なる谷に収束すると、chain間で[r_hat](mcmc-diagnostics.md#r_hatgelman-rubin統計量)が大きく悪化する(例: r_hat=2.10)一方、各チェーン内の局所的な探索自体は健全なため[divergence](mcmc-diagnostics.md#divergence発散)=0のままになる。
 - **使い分け**: Divergence=0という結果だけで健全性を判断せず、必ずr_hatも確認する。r_hatが高い場合、chainごとの推定値の平均を比較し、近い値に集まっていれば「チェーン長不足」、明確に異なる値に分かれていれば「真の多峰性」を疑う([techniques/diagnostics.md](../techniques/diagnostics.md#chain別の平均値を比較して真の多峰性かチェーン長不足かを切り分ける)参照)。根本対処としては、三角関数の極形式を線形係数(直交形式)へ再パラメータ化するなど、尤度面を滑らかにする書き換えが有効([techniques/reparameterization.md](../techniques/reparameterization.md#三角関数の中にあるパラメータ周波数位相は直交形式へ再パラメータ化する)参照)。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#sunspot-周期性を持つ非線形状態空間モデル)
+
+---
+
+### GPの共分散行列悪条件化によるサンプリング停止(divergenceに現れない病理)
+
+- **定義**: 厳密なガウス過程(Cholesky分解による共分散行列の直接構成)で、長さスケールパラメータの事後がグリッド間隔に対して短い領域に迷い込むと、共分散行列が悪条件化(ill-conditioned)し、NUTSの木の深さが爆発的に増えてサンプリングが実質的に停止する病理。
+- **数式・仕組み**: カーネル行列`K`の長さスケールが観測点の間隔に対して短くなるほど、`K`の固有値の一部がゼロに近づき数値的に特異に近づく。Choleskyによる共分散行列の直接構成(`pm.gp.Latent`)はこの悪条件化の影響を直接受けるが、症状は「エネルギー保存則からの逸脱」という[divergence](mcmc-diagnostics.md#divergence発散)の形では現れず、単に1ステップの数値積分に要する時間が指数的に増えてサンプラーが停止したように見える。
+- **使い分け**: 長時間(数十分〜数時間規模)実行してもdivergenceが0のままサンプリングが完了しない場合、非識別性やfunnelのような「健全だが遅い」ケースと区別するため、共分散行列の悪条件化を疑う。`pm.gp.HSGP`(Hilbert空間近似)のように共分散行列そのものを構成しない近似手法に切り替えると、長さスケールの値によらず数値的に安定する([tools/inference-methods.md](inference-methods.md#pmgplatent--hsgp基底関数近似)参照)。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-3の技術的な発見)(LGCP、`pm.gp.Latent`で1チェイン100分超・CPU使用率379%のまま完走せず、`pm.gp.HSGP`へ切り替えて7秒に短縮)

@@ -143,7 +143,7 @@ flowchart LR
 
 - **定義**: 過去のイベントが将来のイベント発生強度を一時的に押し上げる「自己励起性」を持つ連続時間の点過程。地震の余震などに使われる。
 - **数式・仕組み**: 強度関数`λ(t) = μ + Σ_{t_i<t} κ・exp(-β(t-t_i))`(`μ`が背景強度、`κ`・`β`が励起の強さと減衰速度)。対数尤度は`log L = Σ_i log λ(t_i) - ∫_0^T λ(t)dt`で、既製の確率分布に対応しないため`pm.Potential`で直接実装する。
-- **使い分け**: 離散時系列・横断データとは異なり、連続時間のイベント発生時刻そのもの(地震の発生時刻など)をモデル化したい場合に使う。`κ`/`β`のように2パラメータが似た形で強度を押し上げる構造だと、ridge型の非識別性が起きやすい点に注意([techniques/reparameterization.md](../techniques/reparameterization.md#比が意味を持つ量は比自体への再パラメータ化でridge型の非識別性を緩和する)参照)。
+- **使い分け**: 離散時系列・横断データとは異なり、連続時間のイベント発生時刻そのもの(地震の発生時刻など)をモデル化したい場合に使う。`κ`/`β`のように2パラメータが似た形で強度を押し上げる構造だと、ridge型の非識別性が起きやすい点に注意([techniques/reparameterization.md](../techniques/reparameterization.md#比が意味を持つ量は比自体への再パラメータ化でridge型の非識別性を緩和する)参照)。同じ地震カタログの発生「時刻」ではなく発生「位置」の集中度を扱いたい場合は、空間点過程LGCP([tools/spatial-models.md](spatial-models.md#lgcplog-gaussian-cox-process空間点過程)参照)を使う。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
 
 ---

@@ -149,3 +149,39 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 - **対処**: 間引いたグリッド上で厳密カーネル(近似前のカーネル関数)を手動評価し、prior predictiveを代替実装する。
 - **なぜ効くか**: `pm.Potential`はモデルに任意の対数密度項を加える仕組みであり、ArviZ/PyMCの標準APIが前提とする「観測確率変数」の形を持たない。これは本ページ冒頭の「`pm.Potential`では対数尤度が自動保存されない」という既知の制約と同根であり、`Potential`ベースの尤度実装では標準APIの機能(LOO計算、prior predictive等)がそのままでは使えず個別に代替実装が必要になる、という共通パターンの一例。
 - **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#スパースgp-nyc日次気温データ)
+
+---
+
+### `pm.ICAR`は前向きサンプリング不可な上、`logp`の閉形式共分散で代替できる
+
+- **症状**: `pm.ICAR`は対数密度(`logp`)のみを実装し`random()`を持たないため、`pm.sample_prior_predictive()`が`NotImplementedError: Cannot sample from ICAR prior`で失敗する。同じ理由で`pm.model_to_graphviz`(プレートサイズを決定するため変数を実際に評価しようとする)も失敗する。
+- **対処**: `pm.ICAR`のドキュメントに記載された対数密度を整理すると、精度行列`Q/σ²+J/(0.001N)²`(`Q`=グラフラプラシアン、`J`=全要素1の行列)を持つ多変量正規分布と厳密に等価であることが分かる。この閉形式の共分散行列を使って手動でprior predictiveを実装し、`pm.ICAR`の`logp`と数値的に完全一致することを検証した上で使う。モデル構造図(`model_to_graphviz`)自体は本質的に代替できないため省略する。
+- **なぜ効くか**: `pm.ICAR`が`random()`を持たないのはICARの精度行列が特異(singular)であることに起因する実装上の制約であり、閉形式の等価な多変量正規分布を経由すれば、乱数生成というAPIの制約を回避しつつ数式的な妥当性は保てる。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-1の技術的な発見)
+
+---
+
+### BYM2のスケーリング係数は、グラフラプラシアンの一般化逆行列から自前で計算する
+
+- **症状**: BYM2の`scale`(スケーリング係数)を参照実装(Stan公式ケーススタディ)の値をそのまま流用すると、隣接グラフの構造が変わった場合に値が合わなくなり、`ρ`(空間分散の割合)の解釈がそのデータ固有の値に縛られる。
+- **対処**: Riebler et al. (2016)のオリジナル定義通り、グラフラプラシアンの一般化逆行列(Moore-Penrose逆行列)から`scaling_factor`を計算する(このデータでは`scaling_factor≈0.4853`)。アルゴリズムはStanケーススタディの`nb_data_funs.R`(`get_scaling_factor`)と同一のものをPythonに移植する。
+- **なぜ効くか**: `scale`は隣接グラフの構造(地区数・接続パターン)に依存する量であり、参照実装の値をそのまま流用すると暗黙に「同じ隣接構造を仮定する」ことになる。一般化逆行列から自前で計算すれば、任意の隣接グラフに対して`ρ`の解釈(空間分散の割合)が正しく保たれる。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-1の技術的な発見)
+
+---
+
+### クロネッカー積GMRFの二次形式は、精度行列を明示せず行列演算で計算する
+
+- **症状**: 空間時系列BYM(Type IV)の交互作用項`Ψ`の二次形式`vec(Ψ)^T(Q_space⊗Q_time)vec(Ψ)`を素朴に実装すると、郡数×週数の次元を持つ巨大な精度行列(このプロジェクトでは1320×1320)を明示的に構築する必要があるように見える。
+- **対処**: クロネッカー積の性質を利用し、`sum(Psi * (Q_space @ Psi @ Q_time))`という行列演算だけで同じ二次形式を計算する(`Psi`は郡×週の2次元配列のまま扱う)。
+- **なぜ効くか**: `vec(Ψ)^T(A⊗B)vec(Ψ) = sum(Ψ・(BΨA^T))`(対称行列の場合`A^T=A`)という恒等式により、明示的な`(mn)×(mn)`行列を経由せずとも、2つの小さい行列(`Q_space`: 郡数×郡数、`Q_time`: 週数×週数)への行列積だけで同じ値を計算できる。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2の技術的な発見)
+
+---
+
+### `pm.Potential`と`observed=`の使い分け: 他のRVに依存する制約式は`observed=`に渡せない
+
+- **症状**: 空間時系列BYMのsum-to-zero制約(soft constraint)のような、他の確率変数に依存する式を`pm.Normal("constraint", mu=expr, sigma=..., observed=0)`のように`observed=`へ渡すと、`TypeError: Variables that depend on other nodes cannot be used for observed data`で失敗する。
+- **対処**: `pm.Potential`を使い、対数密度への加算項として手動実装する(例: `pm.Potential("sum_to_zero", -0.5 * (expr**2) / eps**2)`)。
+- **なぜ効くか**: `observed=`は「与えられた固定値」を期待するAPIであり、他のRVから計算される式(値がサンプリングのたびに変わる)を渡すことは想定されていない。`pm.Potential`はモデルに任意の対数密度項を加える汎用的な仕組みであるため、この種の「他のRVに依存するsoft constraint」を表現できる。ただし`pm.Potential`で実装した項は対数尤度が自動保存されないため、LOO計算等が必要な場合は別途`pm.Deterministic`で保存する([本ページ冒頭のpm.Potentialに関する注意](#pmpotential-では対数尤度が自動保存されないので明示的に保存する)参照)。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2の技術的な発見)

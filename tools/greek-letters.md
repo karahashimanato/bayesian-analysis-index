@@ -16,6 +16,8 @@
 | ε | イプシロン | ε-greedyの強制ランダム選択確率(探索の下限保証) | [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#主な発見) |
 | η | イータ | SVモデルのprocess noise標準偏差(`σ_η`の形で登場) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility) |
 | η | イータ | GPカーネルの振幅(amplitude、`eta_trend`/`eta_season`等) | [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#複合カーネル-mauna-loa-co2濃度) |
+| η | イータ | LGCPのGPカーネルの分散(variance) | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-3-空間点過程lgcp能登半島地震) |
+| θ | シータ | BYMモデルの地区固有の非構造項(unstructured heterogeneity) | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#1-bymの非識別性θφの分離が決まりにくい) |
 | κ | カッパ | Beta-Binomialの集中度(concentration、大きいほど個体差が小さい) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#mlb打率-階層ベイズbeta-binomial) |
 | κ | カッパ | Hawkes過程の励起強度(excitation strength) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas) |
 | λ | ラムダ | Exponential/Weibullハザード関数のレート・スケールパラメータ | [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#モデル一覧) |
@@ -25,11 +27,14 @@
 | ξ | クサイ | 免疫喪失率(waning immunity rate) | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sirs-米国季節性インフルエンザ)(SIRS) |
 | π | パイ | オフ方策評価(OPE)における方策(評価方策`π_e`、ログ収集方策`π_b`) | [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#notebook構成) |
 | ρ | ロー | leverage effect(観測ノイズ間の非対称な相関) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility) |
+| ρ | ロー | BYM2の空間分散の割合(全体スケールσのうち空間構造項が占める比率) | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#2-bym2による解消) |
 | σ | シグマ | 標準偏差・ボラティリティ全般(MSMのレジーム別`σ_0`/`σ_1`など) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-markov-switching-model) |
 | σ | シグマ | GP尤度の観測ノイズ標準偏差 | [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#標準rbfカーネル-世界平均気温偏差) |
 | σ | シグマ | SEIRモデルの潜伏期からの遷移率(1/潜伏期間、E→Iの速度) | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#seir-湖北省covid-19初期流行) |
 | φ | ファイ | AR(1)の持続性パラメータ(persistence、絶対値が1未満で定常) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility) |
 | φ | ファイ | 季節変動モデルの位相(phase) | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sirs-米国季節性インフルエンザ)(SIRS) |
+| φ | ファイ | ICAR/BYMの空間構造項(隣接地区間で相関する空間効果) | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-1-bym2スコットランド口唇癌データ) |
+| ψ | プサイ | 空間時系列BYMの空間×時間交互作用項 | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2-空間時系列bymオハイオ州covid-19) |
 | ω | オメガ | 周期モデルの角周波数(angular frequency) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#sunspot-周期性を持つ非線形状態空間モデル)(Sunspot) |
 
 ## 関連

@@ -52,6 +52,7 @@
 | [統計的バイアス・概念](tools/statistical-biases.md) | Jensen不等式/Informative Censoring/傾向スコア/Ecological Bias/IPCWの定義と使い分け |
 | [状態空間モデルの型](tools/state-space-models.md) | 変化点モデル/GaussianRandomWalk/非線形状態空間/Markov-Switching/Stochastic Volatilityの定義と使い分け |
 | [事前分布の選び方](tools/prior-distributions.md) | Beta/HalfNormal・HalfCauchy・Gamma/DiscreteUniform/Normal/LogNormalなど、パラメータの性質ごとの事前分布の選び方 |
+| [空間モデルの型](tools/spatial-models.md) | ICAR/BYM/BYM2/空間時系列BYM(Knorr-Held Type I〜IV)/LGCPの定義と使い分け |
 
 ## 対象プロジェクト
 
@@ -65,6 +66,7 @@
 | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md) | ベイズ時系列・階層モデル・点過程の学習ジャーナル(旧markov-regime-switching) | ✅ |
 | [bayesian-causal-inference](https://github.com/karahashimanato/bayesian-causal-inference/blob/main/README.md) | BigQuery公開データセットを用いたBSTS因果推論、半合成デザインによる検出力キャリブレーション | ✅ |
 | [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md) | PyMCによるベイズ・ガウス過程(GP)モデリング。標準RBF/複合カーネル/非ガウス尤度(Poisson)/スパースGPの4ケーススタディ | ✅ |
+| [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md) | PyMCによるベイズ空間統計。ICAR→BYM→BYM2(スコットランド口唇癌)、空間時系列BYM(オハイオ州COVID-19)、空間点過程LGCP(能登半島地震) | ✅ |
 
 ## 運用ルール
 

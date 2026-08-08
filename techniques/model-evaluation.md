@@ -35,7 +35,25 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 - **症状**: `elpd_diff` の絶対値の大きさだけを見て「圧倒的に優れている」と判断すると、誤差の範囲内かもしれない差を過大評価する。
 - **対処**: `elpd_diff` を標準誤差 `dse` で割り、何倍の差があるかで有意性を判断する(例: 差が標準誤差の約6倍)。あわせて有効パラメータ数 `p_LOO` の増加が過学習のペナルティとして妥当な範囲かも確認する。
 - **なぜ効くか**: `elpd_diff` 単体では不確実性の大きさがわからず、`dse` との比較で初めて「意味のある差か」を判断できる。LOOそのものの仕組みは[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#loo-leave-one-out-cross-validation-psis-loo)を参照。
-- **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#2-予測性能評価とモデル比較-held-outデータによる検証)
+- **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#2-予測性能評価とモデル比較-held-outデータによる検証) / [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2-空間時系列bymオハイオ州covid-19)(空間時系列BYM Type IVがType Iに対しelpd_diff=-70、dse=16で標準誤差の約4.4倍の有意な改善)
+
+---
+
+### LOOで差がつかなくても、分散成分を安定して分離推定できることに価値がある場合がある
+
+- **症状**: BYM2はICAR/BYMに対し`az.compare`によるLOO-CVの`elpd_diff`がいずれも標準誤差`dse`の範囲内に収まり、3モデルの予測性能は統計的に区別できない。
+- **対処**: 予測性能(LOO)という1軸だけでモデルの価値を判断せず、非構造項・空間構造項の分散成分を安定して分離推定できているか(パラメータ間の事後相関、r_hat)という推論の健全性を別軸で評価する。
+- **なぜ効くか**: LOOは「未見データへの予測分布の良さ」だけを測る指標であり、モデル内部のパラメータが解釈可能な形で安定して推定できているかは測らない。両者を混同すると「LOOで差がないなら再パラメータ化(BYM2化)は不要」という誤った判断をしてしまう。BYM2による分散成分の分離安定化そのものは[techniques/reparameterization.md](reparameterization.md#bymのθφ分離の非識別性はbym2のσρ再パラメータ化で解消する)を参照。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#3-モデル比較loo-cv)
+
+---
+
+### Pareto k̂の警告が多い場合、要約統計量(elpd_diff)と個票レベルの精度を分けて評価する
+
+- **症状**: LOOのPareto k̂診断で、1,320観測中500件超が$\hat{k}>0.7$(重要度サンプリングの精度低下を示す閾値)の警告を出した。
+- **対処**: `elpd_diff`の大きさが標準誤差`dse`の何倍かという要約レベルの判断(この事例では約4.4倍で明確)と、個々の観測点のLOO値がどれだけ信頼できるかという個票レベルの判断を分けて報告する。後者には留保が必要である旨を明示する。
+- **なぜ効くか**: Pareto k̂はPSIS近似が個々のデータ点でどれだけ信頼できるかを示す診断であり、`elpd_diff`という要約統計量が明確な差を示していても、それを構成する個々の観測点の精度が保証されるわけではない。両者は別の問いに答える指標であるため、一方の健全性からもう一方を推測しない。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2の技術的な発見)
 
 ---
 

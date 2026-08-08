@@ -102,3 +102,21 @@
 - **対処**: `mu`を`log(mean(fires))`のような固定定数にし、基底関数数を`m=20`から`m=6`まで絞る。
 - **なぜ効くか**: どちらの非識別性も「モデルの自由度が尤度に対して過剰である」ことに起因する。パラメータ数を絞る・平均を固定するといった「モデルの自由度を意図的に削る」対応により、尤度を無限に押し上げられる方向そのものをパラメータ空間から除去できる。ridge型非識別性そのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ridge型非識別性)を参照。
 - **登場プロジェクト**: [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#非ガウス尤度ポアソン-山火事件発生件数)
+
+---
+
+### BYMのθ/φ分離の非識別性は、BYM2の(σ,ρ)再パラメータ化で解消する
+
+- **症状**: BYMモデルで地区固有の非構造項`θ`と空間構造項`φ`を別々の分散(`σ_θ`,`σ_φ`)でモデル化すると、両者の事後ペアプロットに緩やかな負の相関(-0.31)が現れ、θ単体・φ単体のESS(中央値: θ=1486、φ=7011)が合成量`θ+φ`のESS(中央値8113)より明確に低くなる。`σ_θ`のr_hatも1.14まで悪化する。
+- **対処**: 同じ量を`σ・(√(1-ρ)・θ*+√(ρ/scale)・φ*)`に再パラメータ化する(BYM2、Riebler et al. 2016)。`σ`は全体スケール、`ρ`は空間分散の割合を表し、`scale`はグラフラプラシアンの一般化逆行列から自前で計算する。
+- **なぜ効くか**: 元のパラメータ化では`σ_θ`と`σ_φ`がどちらも「観測されたばらつきの一部」を説明する冗長な自由度を持つが、BYM2は「合計の大きさ(σ)」と「その内訳(ρ)」という直交した2つの問いに分解する。この再パラメータ化により`σ`,`ρ`の事後相関は0.08まで縮小し、全パラメータのr_hatが1.00に改善する。BYMの非識別性そのものの定義は[tools/spatial-models.md](../tools/spatial-models.md#bymbesag-york-mollié)、ridge型非識別性との対応は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ridge型非識別性)を参照。なお`az.compare`によるLOO-CVでは3モデル(ICAR/BYM/BYM2)の予測性能に有意差はなく、BYM2の価値は予測精度ではなく分散成分の分離推定の安定性にある([techniques/model-evaluation.md](model-evaluation.md#looで差がつかなくても分散成分を安定して分離推定できることに価値がある場合がある)参照)。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-1-bym2スコットランド口唇癌データ)
+
+---
+
+### RW1の絶対水準の不定性は、β0との交絡を生むため中心化で解消する
+
+- **症状**: 空間時系列BYMの時間項に`pm.GaussianRandomWalk`(RW1)を使うと、RW1自体の絶対水準(全体を定数だけ底上げしても尤度が変わらない)が切片`β0`と交絡し、両者の分離が事後分布上で不安定になりうる。
+- **対処**: `time_raw - mean(time_raw)`のように、RW1の値を使用前に中心化(平均を引く)してから線形予測子に組み込む。
+- **なぜ効くか**: RW1(`x_t=x_{t-1}+ε_t`)は差分だけで定義されるため絶対水準に関する情報を持たず、`β0`と自由に足並みを揃えられる冗長な自由度を持つ。中心化により「RW1の平均的な水準」という自由度を明示的にゼロへ固定し、`β0`との役割分担を明確にする。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2の技術的な発見)

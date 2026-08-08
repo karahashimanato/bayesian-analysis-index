@@ -142,3 +142,12 @@ flowchart TD
 - **対処**: 原因を「探索の下限を保証しない実装」と特定し、確率10%で強制的にランダム選択するε-greedyミックスを導入したところロックインが解消した。
 - **なぜ効くか**: トンプソン抽出は理論上は事後分布のサンプリングで自然に探索と活用のバランスを取るが、収縮バイアスなど他の要因で特定の腕への確信が過度に強まると、事後サンプリングだけでは抜け出せない局所解に陥ることがある。強制探索の下限を別途設けることで、この種の失敗モードに対する保険になる。Thompson Samplingそのものの定義は[tools/inference-methods.md](../tools/inference-methods.md#thompson-sampling)を参照。
 - **登場プロジェクト**: [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#主な発見)
+
+---
+
+### divergence=0のままサンプリングが停止する場合、GPの共分散行列の悪条件化を疑う
+
+- **症状**: 厳密なガウス過程(`pm.gp.Latent`)でNUTSサンプリングを試みたところ、divergenceは1つも出ないままサンプリングが実質的に停止した(1チェイン100分超・CPU使用率379%のまま完走せず)。
+- **対処**: 長さスケールの事後がグリッド間隔に対して短い領域に迷い込むと共分散行列が悪条件化し、NUTSの木の深さが爆発的に増えることを疑う。`pm.gp.Latent`から、共分散行列そのものを構成しない`pm.gp.HSGP`(Hilbert空間近似)に置き換える(モデル・事前分布はそのまま)。
+- **なぜ効くか**: divergenceは「局所的な数値積分の破綻」を検出する指標であり、「1ステップの計算コスト自体が跳ね上がって停止する」という種類の病理は原理的に検出できない。r_hat/ESS/divergenceの3段階診断では捉えられない、気づきにくい病理の一例。GPの共分散行列悪条件化そのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#gpの共分散行列悪条件化によるサンプリング停止divergenceに現れない病理)を参照。
+- **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-3の技術的な発見)(LGCP、`pm.gp.Latent`→`pm.gp.HSGP`で実行時間100分超→7秒に短縮)
