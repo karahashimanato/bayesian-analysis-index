@@ -28,6 +28,7 @@
 
 | カテゴリ | 内容 |
 |---|---|
+| [モデリング前のEDA(探索的データ分析)](techniques/eda.md) | 尤度分布選択・説明変数間の相関・季節性確認など、モデル構造を決める前のデータ理解 |
 | [事前分布設計・prior predictive check](techniques/prior-predictive-check.md) | 事前分布のスケール決定、サンプリング前の検証 |
 | [尤度・観測モデル選択](techniques/observation-model.md) | 観測データをモデルのどの量に対応付けるか、分布族の選択 |
 | [パラメータ化・非識別性対策](techniques/reparameterization.md) | 比が意味を持つ量の再パラメータ化、値の矛盾の構造的排除 |
