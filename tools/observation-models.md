@@ -1,6 +1,39 @@
 # 観測モデル・尤度分布
 
-観測データをモデルのどの分布・尤度で結びつけるかの用語辞典。`techniques/observation-model.md`が「症状/対処」型の教訓集であるのに対し、こちらは各分布・尤度パターンそのものの定義・仕組み・使い分けを引くためのリファレンス。
+観測データをモデルのどの分布・尤度で結びつけるかの用語辞典。`techniques/observation-model.md`が「症状/対処」型の教訓集であるのに対し、こちらは各分布・尤度パターンそのものの定義・仕組み・使い分けを引くためのリファレンス。分布を選ぶ前提となるEDA(過分散・裾の重さの確認など)は[techniques/eda.md](../techniques/eda.md)を参照。
+
+## 尤度分布を見分けるフローチャート
+
+観測データの性質から、どの尤度分布に当たるかを見分けるための特徴質問チャート。各entryの「使い分け」で説明している判断基準(過分散の有無、個体間のばらつきの有無など)を経路にしたもので、上から順に絞り込む決定木として使える。
+
+```mermaid
+flowchart LR
+    Start(["観測データの性質は?"])
+
+    Start -->|"連続時間上のイベント発生<br/>時刻そのもの(地震の余震など)"| Hawkes["Hawkes過程"]
+    Start -->|"『イベントまでの時間』が目的変数<br/>(打ち切りデータあり)"| Hazard["生存時間分析<br/>(ハザード関数)"]
+    Start -->|"時間とともに切り替わる<br/>離散レジームがある"| Forward["forward algorithm<br/>(離散潜在状態の周辺化)"]
+    Start -->|"離散イベントの発生回数<br/>(カウントデータ)"| Count["Poisson系"]
+    Start -->|"二値の成功/失敗、<br/>または成功回数"| Binary["Bernoulli/Binomial系"]
+    Start -->|"複数カテゴリへの配分比率"| Multi["Dirichlet-Multinomial"]
+    Start -->|"連続値(残差・リターンなど)"| Cont["Normal/Student-t系"]
+
+    Count -->|"分散が平均とほぼ等しい"| Poisson["Poisson"]
+    Count -->|"分散が平均を大きく上回る<br/>(overdispersion)"| GP["Gamma-Poisson"]
+
+    Binary -->|"成功確率pを固定値として扱う"| BB["Bernoulli / Binomial"]
+    Binary -->|"個体・グループ間で<br/>成功確率がばらつく"| BetaBinom["Beta-Binomial"]
+
+    Cont -->|"外れ値に頑健にしたい<br/>(裾が重いと疑われる)"| StudentT["Student-t"]
+    Cont -->|"特に問題なし"| Normal["Normal"]
+
+    Hazard -->|"ハザード率は時間で一定でよい"| Exp["Exponential"]
+    Hazard -->|"時間とともに単調に増減<br/>(KM曲線と系統的にズレる)"| Weib["Weibull"]
+    Hazard -->|"U字型など、単純な関数形<br/>では捉えきれない形状"| PE["Piecewise Exponential"]
+    PE -->|"共変量だけで説明できない<br/>グループ間の系統差がある"| Frail["Frailty"]
+```
+
+- [Poisson](#poisson) / [Bernoulli / Binomial](#bernoulli--binomial) / [Beta-Binomial](#beta-binomial) / [Gamma-Poisson](#gamma-poisson負の二項分布相当) / [Dirichlet-Multinomial](#dirichlet-multinomial) / [Normal / Student-t](#normal--student-t観測分布) / [Exponential](#exponentialハザード関数) / [Weibull](#weibullハザード関数) / [Piecewise Exponential](#piecewise-exponentialcox比例ハザード) / [Frailty](#frailty変量効果) / [Hawkes過程](#hawkes過程点過程の尤度) / [forward algorithm](#forward-algorithm離散潜在状態の周辺化尤度)
 
 ---
 
