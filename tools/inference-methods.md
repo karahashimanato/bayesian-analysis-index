@@ -14,7 +14,10 @@
 
 3手法とも「提案が独立/対称なランダムウォークか、勾配で導かれた軌道か」という同じ軸の違いに帰着する。[bayesian-causal-inference](https://github.com/karahashimanato/bayesian-causal-inference/blob/main/README.md#学び)でmean-field ADVIが強く相関したパラメータ間の不確実性を過大評価したのも、[Compound Step](#compound-step)でMetropolis法のESSが低下したのも、根っこは同じ「パラメータ間の相関が強い空間を、相関を考慮しない独立仮定・ランダムウォークで探索する非効率さ」に行き着く。
 
-強相関(ρ=0.95)な2次元正規分布を3手法が実際にどう探索するかを動かして比較できるインタラクティブな可視化: [MCMCサンプリング手法の比較(Artifact)](https://claude.ai/code/artifact/629e3a1c-4c08-4219-87bd-6e4969e832ce)
+3手法が実際にどう探索するかを動かして比較できるインタラクティブな可視化: [MCMCサンプリング手法の比較(Artifact)](https://claude.ai/code/artifact/629e3a1c-4c08-4219-87bd-6e4969e832ce)。分布セレクタで2種類の目標分布を切り替えられる。
+
+- **相関ガウス分布(ρ可変、0.5〜0.99)**: ρを上げるほど[Ridge型非識別性](posterior-pathologies.md#ridge型非識別性)に近づき、HMCは軌道が尾根に沿い続けられるかが、MH/Gibbsは1ステップの実質的な歩幅がどれだけ縮むかが試される。
+- **Bimodal(2峰)混合分布**: [マルチモダリティ](posterior-pathologies.md#マルチモダリティ多峰性)の簡易版。HMC・MHとも局所的な情報(勾配・固定分散の提案)しか持たないため、谷を挟んだ隣の峰へは60反復では移れず開始した峰に留まり続ける。Gibbsは条件付き分布が共役でなくなるため、この分布ではそもそも実行できない(比較表の「デメリット」を可視化で直接示す実例)。
 
 ---
 
