@@ -54,6 +54,7 @@
 | [事前分布の選び方](tools/prior-distributions.md) | Beta/HalfNormal・HalfCauchy・Gamma/DiscreteUniform/Normal/LogNormalなど、パラメータの性質ごとの事前分布の選び方 |
 | [空間モデルの型](tools/spatial-models.md) | ICAR/BYM/BYM2/空間時系列BYM(Knorr-Held Type I〜IV)/LGCPの定義と使い分け |
 | [欠測データ処理の型](tools/missing-data.md) | MCAR/MAR/MNAR(欠測メカニズムの分類)、フルベイズ同時モデル/MICE/Selection Model/Pattern-Mixture Model/多変量同時欠測モデルの定義と使い分け |
+| [獲得関数の型](tools/acquisition-functions.md) | PI/EI/UCB/GP版Thompson Samplingの定義と使い分け |
 
 ## 対象プロジェクト
 
@@ -69,6 +70,7 @@
 | [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md) | PyMCによるベイズ・ガウス過程(GP)モデリング。標準RBF/複合カーネル/非ガウス尤度(Poisson)/スパースGPの4ケーススタディ | ✅ |
 | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md) | PyMCによるベイズ空間統計。ICAR→BYM→BYM2(スコットランド口唇癌)、空間時系列BYM(オハイオ州COVID-19)、空間点過程LGCP(能登半島地震) | ✅ |
 | [bayesian-missing-data](https://github.com/karahashimanato/bayesian-missing-data/blob/main/README.md) | 欠測データ処理(Missing Data)のベイズ分析。World Bank開発指標パネルデータでMCAR/MAR/MNARを横断検証し、フルベイズ同時モデル・MICE・Selection Model・Pattern-Mixture Model・多変量同時欠測モデルを実装 | ✅ |
+| [bayesian-optimization](https://github.com/karahashimanato/bayesian-optimization/blob/main/README.md) | PyMCによるベイズ最適化。GP代理モデル+獲得関数(PI/EI/UCB/GP版Thompson Sampling)を1次元/2次元Branin/6次元Hartmannベンチマークで検証し、XGBoostハイパーパラメータ探索に実応用 | ✅ |
 
 ## 運用ルール
 

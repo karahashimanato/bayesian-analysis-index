@@ -17,11 +17,12 @@
 | ε | イプシロン | 比が意味を持つ量の再パラメータ化における小さな揺らぎ(`R0 = 1 + ε` など) | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sis-ナイジェリア-マラリア罹患率) |
 | ε | イプシロン | ε-greedyの強制ランダム選択確率(探索の下限保証) | [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#主な発見) |
 | η | イータ | SVモデルのprocess noise標準偏差(`σ_η`の形で登場) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility) |
-| η | イータ | GPカーネルの振幅(amplitude、`eta_trend`/`eta_season`等) | [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#複合カーネル-mauna-loa-co2濃度) |
+| η | イータ | GPカーネルの振幅(amplitude、`eta_trend`/`eta_season`等) | [bayesian-gaussian-process](https://github.com/karahashimanato/bayesian-gaussian-process/blob/main/README.md#複合カーネル-mauna-loa-co2濃度) / [bayesian-optimization](https://github.com/karahashimanato/bayesian-optimization/blob/main/README.md#1次元ノイズなし-獲得関数の挙動比較)(GP代理モデルの振幅) |
 | η | イータ | LGCPのGPカーネルの分散(variance) | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-3-空間点過程lgcp能登半島地震) |
 | θ | シータ | BYMモデルの地区固有の非構造項(unstructured heterogeneity) | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#1-bymの非識別性θφの分離が決まりにくい) |
 | κ | カッパ | Beta-Binomialの集中度(concentration、大きいほど個体差が小さい) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#mlb打率-階層ベイズbeta-binomial) |
 | κ | カッパ | Hawkes過程の励起強度(excitation strength) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas) |
+| κ | カッパ | UCB獲得関数の探索の強さ(GP事後標準偏差への係数) | [bayesian-optimization](https://github.com/karahashimanato/bayesian-optimization/blob/main/README.md#1次元ノイズなし-獲得関数の挙動比較) |
 | λ | ラムダ | Exponential/Weibullハザード関数のレート・スケールパラメータ | [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#モデル一覧) |
 | λ | ラムダ | Poisson分布・Hawkes過程の発生率/強度関数 | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sir-eyamペスト流行1666) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas) |
 | μ | ミュー | Beta-Binomial/Gamma-Poissonの全体平均 | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#mlb打率-階層ベイズbeta-binomial)(MLB) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#サメ襲撃件数-階層ベイズgamma-poisson)(サメ) |

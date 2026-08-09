@@ -4,7 +4,7 @@
 
 ## 種類を見分ける特徴質問チャート
 
-新しい分析を始めるとき、11種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。図中の点線はそうした代表的な重複を示す。
+新しい分析を始めるとき、12種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。ベイズ最適化はガウス過程を代理モデルに使う点で「ガウス過程回帰」の応用でもあり、獲得関数の1つGP版Thompson Samplingは離散腕のThompson Samplingを連続空間へ拡張したものという点で「多腕バンディット・OPE」とも重なる。図中の点線はそうした代表的な重複を示す。
 
 ```mermaid
 flowchart LR
@@ -21,13 +21,16 @@ flowchart LR
     Start -->|"入力から出力への関数形を、<br/>パラメトリックな形を仮定せず推定したい"| GP["ガウス過程回帰<br/>Gaussian Process"]
     Start -->|"隣接構造や連続空間上の位置に<br/>依存する空間相関を推定したい"| SP["空間モデル<br/>Spatial Models"]
     Start -->|"データの一部が構造的に観測できず、<br/>欠測の仕組みに応じて補正・補完したい"| MD["欠測データ処理<br/>Missing Data / Imputation"]
+    Start -->|"評価コストの高い関数を、少ない評価回数で<br/>逐次的に最適化したい"| BO["ベイズ最適化<br/>Bayesian Optimization"]
 
     CI -.重複しうる.- SSM
     MAB -.重複しうる.- HB
     SP -.重複しうる.- PP
+    BO -.重複しうる.- GP
+    BO -.重複しうる.- MAB
 ```
 
-- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression) / [空間モデル](#空間モデルspatial-models) / [欠測データ処理](#欠測データ処理missing-data--multiple-imputation)
+- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression) / [空間モデル](#空間モデルspatial-models) / [欠測データ処理](#欠測データ処理missing-data--multiple-imputation) / [ベイズ最適化](#ベイズ最適化bayesian-optimization)
 
 ---
 
@@ -127,3 +130,12 @@ flowchart LR
 - **代表的な問い**: この欠測は無視してよい(MCAR/MAR)か、それとも欠測の有無自体が値と結びついている(MNAR)か。欠測を無視した処理(完全ケース分析・平均補完)は、どの推定量(回帰係数か、周辺平均か)をどれだけ歪めるか。MNARのように原理的に識別できない設定で、結果は仮定にどれだけ依存するか。
 - **登場プロジェクト**: [bayesian-missing-data](https://github.com/karahashimanato/bayesian-missing-data/blob/main/README.md)(World Bank開発指標パネルデータ、MCAR/MAR/MNARを横断検証)
 - **関連ページ**: [tools/missing-data.md](tools/missing-data.md)(MCAR/MAR/MNAR・フルベイズ同時モデル・MICE・Selection Model・Pattern-Mixture Model・多変量同時欠測モデルの内訳はこちらに独立してまとめている) / [techniques/data-pitfalls.md](techniques/data-pitfalls.md#平均補完は最も単純な対処であり最も危険でもある)(平均補完の危険性) / [techniques/model-evaluation.md](techniques/model-evaluation.md#真値のない実データに適用する前に半合成デザインで手法の妥当性を確立する)(半合成デザインでの検証)
+
+---
+
+### ベイズ最適化(Bayesian Optimization)
+
+- **定義**: 評価コストの高いブラックボックス関数(シミュレーション、機械学習モデルの性能など)を、ガウス過程(GP)を代理モデルとして少ない評価回数で最適化する逐次的な意思決定手法。各反復で、代理モデルの事後分布(平均・不確実性)から獲得関数(PI/EI/UCB/GP版Thompson Samplingなど)を計算し、次に評価すべき点を選ぶ。
+- **代表的な問い**: 限られた評価回数の中で、次にどこを評価すれば最も効率よく最適解に近づけるか。探索(不確実性が高い領域を試す)と活用(良さそうな領域を深掘りする)のバランスをどう取るか。次元が増えるにつれて、必要な評価回数はどう増えるか(次元の呪い)。
+- **登場プロジェクト**: [bayesian-optimization](https://github.com/karahashimanato/bayesian-optimization/blob/main/README.md)(1次元/2次元Branin/6次元Hartmannベンチマークでの獲得関数比較、XGBoostハイパーパラメータ探索への実応用)
+- **関連ページ**: [tools/acquisition-functions.md](tools/acquisition-functions.md)(PI・EI・UCB・GP版Thompson Samplingの内訳はこちらに独立してまとめている) / [tools/evaluation-metrics.md](tools/evaluation-metrics.md#regret単純後悔simple-regret)(収束の評価指標regret) / [techniques/implementation-hacks.md](techniques/implementation-hacks.md#獲得関数の最大化は次元が増えるとグリッド探索が組合せ爆発するためscipyoptimizeマルチスタートに切り替える)(高次元での獲得関数最大化)

@@ -98,3 +98,12 @@
 - **数式・仕組み**: DRの補正項`Σ w_i(r_i - r̂)`を`Σ w_i`で正規化してからDMの推定値に加える。
 - **使い分け**: DRの分散をさらに抑えたい場合の実務的な標準選択。ランダム方策の一様な傾向スコアという特殊構造下では`SNIPS = SNDR = 単純平均DM`という恒等式が理論的に成り立ち、実データでの一致確認は推定量の実装が正しいかを検証する回帰テストとして使える([techniques/model-evaluation.md](../techniques/model-evaluation.md#特殊構造の下で推定量どうしが一致することを確認し実装の妥当性検証に使う)参照)。
 - **登場プロジェクト**: [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#主な発見)
+
+---
+
+### Regret(単純後悔、Simple Regret)
+
+- **定義**: ベイズ最適化(BO)における収束の評価指標。真の最適値と、ある時点までに観測した最良値との差。
+- **数式・仕組み**: `regret_t = g(x*) - max(g(x_1),...,g(x_t))`(`g(x*)`は真の大域最適値)。反復`t`が進むにつれて0に近づくほど、真の最適解に近い点を発見できていることを示す。
+- **使い分け**: 真の最適解が既知なベンチマーク関数での獲得関数比較に使う(実応用では真の最適値`g(x*)`が未知のため使えず、代わりにholdoutデータでの最終性能を使う)。獲得関数自体の最大化に使う探索(グリッドの分解能など)が律速している場合、regretが理論上の0まで収束しないことがあり、獲得関数の探索失敗と計算上の解像度不足を混同しないよう注意する。
+- **登場プロジェクト**: [bayesian-optimization](https://github.com/karahashimanato/bayesian-optimization/blob/main/README.md#1次元ノイズなし-獲得関数の挙動比較)
