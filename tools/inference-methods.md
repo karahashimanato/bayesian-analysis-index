@@ -25,6 +25,10 @@
 
 ### NUTS (No-U-Turn Sampler)
 
+![相関ρ=0.9の2次元ガウス分布を目標分布に、leapfrog積分によるdoubling手続き(木を2倍ずつ伸ばしU-turn条件で停止)を実際にnumpyで実装。1回のNUTS軌道(leapfrog 7ステップ、doubling 3回)は開始点から1.67移動するが、同じ開始点からのMetropolis-Hastingsの1提案(ランダムウォーク)は0.98しか移動しない](../assets/inference-methods/nuts_trajectory.png)
+
+*leapfrog積分とdoubling手続きを素朴なnumpy実装で再現し、1回のNUTS軌道とMH法の1ステップの移動量を比較した結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。3手法を実際に動かして比較できるインタラクティブな可視化は[上記のArtifact](https://claude.ai/code/artifact/629e3a1c-4c08-4219-87bd-6e4969e832ce)を参照。*
+
 - **定義**: HMC(ハミルトニアンモンテカルロ)を発展させた、軌道の長さを自動的に決定するMCMCサンプラー。PyMCで連続パラメータをサンプリングする際のデフォルト手法。
 - **数式・仕組み**: パラメータ空間に仮想的な「運動量」を導入し、ハミルトン力学の軌道をシミュレートしてサンプルを生成する(勾配を使うため、ランダムウォークするMetropolis法より効率的に空間を探索できる)。軌道が"Uターン"し始めるタイミングを自動検出して停止することで、手動でのステップ数調整を不要にする。
 - **使い分け**: PyMCで連続パラメータをサンプリングする際の基本選択。離散パラメータには使えず、混在するモデルでは[Compound Step](#compound-step)による組み合わせになる。
@@ -33,6 +37,10 @@
 ---
 
 ### ADVI / mean-field変分推論(SVI)
+
+![相関ρ=0.95の2次元正規分布(平均・共分散を同時推定)にNUTSとmean-field ADVIを実際にPyMCでフィット。NUTSの事後は相関を保持した細長い分布になるが、ADVIの事後はより丸みを帯びた広い分布になり、この設定ではSDがNUTSの約1.2倍とむしろ過大評価になった](../assets/inference-methods/advi_vs_nuts_underestimation.png)
+
+*相関の強いMvNormal尤度モデルにNUTSとADVIを実際にフィットして事後を比較した結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。mean-fieldが相関を無視する点は理論通り可視化されたが、共分散パラメータも同時推定するこの設定ではSDの「過小評価」ではなく「過大評価」が観測された。過小評価・過大評価いずれの方向であれ、ADVIの事後がNUTSと乖離しうる点を採用前に確認すべきという結論自体は変わらない。*
 
 - **定義**: 事後分布を、扱いやすい形の近似分布(mean-fieldの場合、パラメータ間の相関を無視した独立正規分布の積)で近似し、両者の差(KLダイバージェンス)を最小化する最適化問題として解く、MCMCより高速な近似推論手法。
 - **数式・仕組み**: MCMCのようにサンプルを逐次生成せず、勾配降下法で近似分布のパラメータ(平均・分散)を直接最適化する。mean-field近似は変数間の共分散を0とみなすため、パラメータ間の相関が強い場合に不確実性を系統的に過小評価する。
@@ -56,6 +64,10 @@
 
 ### Replay法(オフライン方策評価のシミュレーション)
 
+![一様ランダムなログ収集方策で集めた合成ログ(15万行)にepsilon-greedy評価方策をReplay法で適用。行動が一致しない行は破棄され有効に使えたのは全体の25.1%(37,614ラウンド)のみだが、採用ラウンドが進むにつれ推定平均報酬は理論的な収束値(0.1160)に一致する(最終値0.1151)](../assets/inference-methods/replay_method.png)
+
+*合成バンディットログでReplay法を実際にnumpyでシミュレートし、推定値の収束と採用ラウンド数の減少を示した結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。*
+
 - **定義**: 過去にランダム方策で収集したログデータだけを使って、別の(評価したい)方策をオンラインで運用した場合の挙動を再現するオフラインシミュレーション手法。
 - **数式・仕組み**: ログの各行を時系列順に1件ずつ処理し、評価方策が実際にログと同じ行動(腕)を選んだ場合のみ、そのログの報酬を採用してモデルを更新する。行動が一致しない行は「その方策が選ばなかった」ものとして破棄する。ログ収集方策が一様ランダムであれば、この手続きは評価方策を実際にオンライン運用した場合と統計的に同じ分布を持つ推定になる。
 - **使い分け**: 新しい方策(階層ベイズ版Thompson Samplingなど)を実際に本番投入せずに、過去のランダム方策ログだけで性能を検証したい場合に使う。行動が一致しない行を大量に破棄するため、有効に使えるラウンド数はログ全体よりかなり少なくなる(本プロジェクトでは約1,235万行のログに対し、実際に使えたのは約1.7万ラウンド)。
@@ -78,6 +90,10 @@
 
 ### `pm.gp.Marginal`(GPの解析的周辺化)
 
+![ガウス尤度のGP回帰にpm.gp.Marginalを実際にPyMCでフィット(N=20点、6.2秒)。潜在関数fを明示的にサンプリングせず、カーネルハイパーパラメータ(ell, eta, sigma)だけをNUTSでサンプリングし、真の関数に近い事後平均と95%区間を復元する](../assets/inference-methods/gp_marginal.png)
+
+*ガウス尤度・厳密GPを1次元合成データに実際にフィットした結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。*
+
 - **定義**: ガウス尤度のGP回帰で、潜在関数`f`を明示的にサンプリングせず解析的に周辺化(積分消去)し、カーネルのハイパーパラメータ(長さスケール`ell`、振幅`eta`、観測ノイズ`sigma`)だけをNUTSでサンプリングする厳密GP推論。
 - **数式・仕組み**: `f ~ GP(0, k)`、`y ~ Normal(f(x), sigma)`というガウス尤度・ガウス過程の組み合わせでは、`f`を積分消去した周辺尤度が解析的に閉形式で書ける(共役性)。計算コストはカーネル行列(N×N)の逆行列計算に由来しO(N³)。
 - **使い分け**: ガウス尤度・厳密GPを使う場合の基本選択。O(N³)のため数百〜千点を超えると非現実的になる(Mauna Loa CO2濃度の例では全68年分・821点をそのまま使うと4chain分のNUTSサンプリングに数時間かかる見込みが判明し、直近150ヶ月・150点に絞った)。非ガウス尤度には使えない([pm.gp.Latent + HSGP](#pmgplatent--hsgp基底関数近似)参照)。大規模データには[pm.gp.MarginalApprox(VFE)](#pmgpmarginalapproxvfe誘導点近似スパースgp)を検討する。
@@ -87,6 +103,10 @@
 
 ### `pm.gp.Latent` + HSGP(基底関数近似)
 
+![Poisson尤度のGP回帰でpm.gp.Latent(厳密)とpm.gp.HSGP(基底関数近似)を実際にPyMCでフィット(N=18点)。両者はほぼ一致する対数強度を復元し、HSGPは1.8倍高速だが、点数が少ないため両者とも過度に滑らかで真の周期変動までは追えていない](../assets/inference-methods/gp_latent_vs_hsgp.png)
+
+*非ガウス尤度(Poisson)のGP回帰にpm.gp.Latentとpm.gp.HSGPを実際にフィットし、実行時間と復元された対数強度を比較した結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。*
+
 - **定義**: ガウス尤度以外の尤度(Poissonなど)でGPを使う場合に、潜在関数`f`を明示的な確率変数としてサンプリングする手法。厳密な`pm.gp.Latent`は計算コストが高いため、有限個の大域基底関数の線形結合でGPを近似するHSGP(Hilbert Space GP)を通常組み合わせる。
 - **数式・仕組み**: `f(x) ≈ Σ_j √S(√λ_j)・φ_j(x)・β_j`のように、有限個(`m`個)の基底関数`φ_j`の線形結合で近似し、係数`β_j`を標準正規分布に従う確率変数としてサンプリングする。
 - **使い分け**: Poissonなど非ガウス尤度を使う場合の標準的な選択。基底関数数`m`を増やしすぎると、振幅`eta`を大きくしながら基底係数を比例的に小さくすることで尤度を際限なく上げられる退化(非識別性)を起こしうるため、`m`を絞る・平均関数を固定するといった対応が必要になる場合がある([techniques/reparameterization.md](../techniques/reparameterization.md#gpの平均関数を固定定数にし基底関数数を絞ることで非識別性を解消する)参照)。有限個の大域基底関数で近似するため、学習データ域外への外挿はHSGPの近似構造そのものに起因して不安定になりうる(多項式回帰同様の限界)。非ガウス尤度でなくとも、長さスケールの事後がグリッド間隔に対して短い領域に迷い込み厳密GP(`pm.gp.Latent`)の共分散行列が悪条件化する場合、`pm.gp.HSGP`は共分散行列そのものを構成しないため数値的な安定性の面でも有効な代替になる([tools/posterior-pathologies.md](posterior-pathologies.md#gpの共分散行列悪条件化によるサンプリング停止divergenceに現れない病理)参照)。
@@ -95,6 +115,10 @@
 ---
 
 ### `pm.gp.MarginalApprox`(VFE、誘導点近似・スパースGP)
+
+![厳密GP(pm.gp.Marginal)とVFEスパースGP(M=15誘導点)を同じN=120点の合成データに実際にPyMCでフィット。予測はほぼ一致するが、この規模ではVFEはむしろ厳密GPの2.6倍遅い(2.5秒 vs 6.7秒)](../assets/inference-methods/gp_marginal_approx.png)
+
+*厳密GPとVFE近似を同一データに実際にフィットし、実行時間を比較した結果(生成スクリプト: [scripts/generate_inference_methods_plots.py](../scripts/generate_inference_methods_plots.py))。N=120程度ではVFE自体のオーバーヘッド(誘導点の最適化・Potential実装の勾配計算)が厳密GPのO(N³)を上回り、誘導点近似の恩恵はNがさらに大きい場合に限られることを示す実例。*
 
 - **定義**: 厳密GPのO(N³)の計算コストを、少数の誘導点(inducing points)による変分近似(VFE, Variational Free Energy)でO(N・M²)に削減するスパースGP手法。
 - **数式・仕組み**: 全データ点の代わりに`M`個の誘導点(`pm.gp.util.kmeans_inducing_points`などで自動配置)を経由してGPを近似する。VFE尤度は`pm.Potential`として実装されており、通常の観測確率変数`y_obs`を持たないため、`pm.sample_prior_predictive`のような標準APIがそのままでは使えない([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#pmgpmarginalapproxのvfe尤度はpotential実装のためsample_prior_predictiveが使えない)参照)。
