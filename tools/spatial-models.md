@@ -45,6 +45,10 @@
 
 ### 空間時系列BYM(Knorr-Held型space-time interaction)
 
+![Knorr-Held型: 5x5格子x10時点の合成データでType I(非構造)とType IV(クロネッカー積構造、固有基底によるsum-to-zero制約付きパラメータ化)を実際にPyMCでフィット。真の交互作用との相関はType I=0.12に対しType IV=0.30とやや高いが、LOOのelpd差は-1.0(標準誤差dse=1.9で0をまたぐ)と統計的に有意差はつかない](../assets/spatial-models/knorr_held_type_i_vs_iv.png)
+
+*5x5格子x10時点の合成ホットスポット拡大データで、Type IとType IVを両方実際にPyMCでサンプリングし比較した結果(生成スクリプト: [scripts/generate_spatial_models_plots.py](../scripts/generate_spatial_models_plots.py))。この規模のデータではLOOで有意差はつかなかったが、[BYM2](#bym2)と同様「LOOで差がつかなくても構造化することに価値がある」場合の一例として、交互作用の点推定が真値により近づく(相関が高い)ことを確認できる。*
+
 - **定義**: [BYM2](#bym2)を時間方向に拡張し、「時間とともに空間パターンがどう変化するか」を表現するモデル(Knorr-Held 2000)。空間・時間・両者の交互作用を分けて構造化する。
 - **数式・仕組み**: `η_it = β0 + S_i(空間、BYM2) + δ_t(時間、RW1) + ψ_it(交互作用)`。交互作用`ψ_it`をどこまで構造化するかでType I〜IVに分かれ、Type Iは`ψ_it ~ Normal(0,σ_ψ)`(郡×週で完全に非構造)、Type IVは`ψ`の精度行列を空間ラプラシアン`Q_space`と時間RW1の構造行列`Q_time`のクロネッカー積`Q_space⊗Q_time`で構成する(空間・時間ともに構造化)。後者の二次形式`vec(Ψ)^T(Q_space⊗Q_time)vec(Ψ)`は、明示的に大きな精度行列を作らず`sum(Psi * (Q_space @ Psi @ Q_time))`という行列演算だけで計算できる([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#クロネッカー積gmrfの二次形式は精度行列を明示せず行列演算で計算する)参照)。
 - **使い分け**: 「空間パターンが時間的に安定しているか、それとも構造的に変化していくか」を検証したい場合に使う。Type IVはType Iより計算コストが高いが、交互作用の構造化自体が予測性能の向上につながる場合がある(BYM2が予測性能で差がつかなかったのとは対照的)。RW1の絶対水準は`β0`と交絡するため、時間側の変数は中心化してから使う必要がある([techniques/reparameterization.md](../techniques/reparameterization.md#rw1の絶対水準の不定性はβ0との交絡を生むため中心化で解消する)参照)。

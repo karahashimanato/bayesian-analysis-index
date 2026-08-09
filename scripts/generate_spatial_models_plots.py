@@ -319,8 +319,164 @@ def plot_lgcp_latent_vs_hsgp():
           f"corr={corr_hsgp:.3f}, speedup={speedup:.1f}x)")
 
 
+def _build_chain_laplacian(t):
+    W = np.zeros((t, t))
+    for i in range(t - 1):
+        W[i, i + 1] = W[i + 1, i] = 1
+    D = W.sum(axis=1)
+    return np.diag(D) - W
+
+
+def plot_knorr_held_type_i_vs_iv():
+    """空間時系列BYM(Knorr-Held型)のType I(非構造交互作用)とType IV
+    (クロネッカー積構造の交互作用)を5x5格子x10時点の合成データで実際に
+    PyMCでフィットし、交互作用の復元結果とLOOでの予測性能を比較する。"""
+
+    rng = np.random.default_rng(11)
+    side = 5
+    n_space = side * side
+    t_len = 10
+
+    def _adj(s):
+        n = s * s
+        W = np.zeros((n, n))
+        for r in range(s):
+            for c in range(s):
+                i = r * s + c
+                if r > 0:
+                    j = (r - 1) * s + c
+                    W[i, j] = W[j, i] = 1
+                if c > 0:
+                    j = r * s + (c - 1)
+                    W[i, j] = W[j, i] = 1
+        return W
+
+    W_space = _adj(side)
+    Q_space = np.diag(W_space.sum(axis=1)) - W_space
+    Q_time = _build_chain_laplacian(t_len)
+
+    rr, cc = np.meshgrid(np.arange(side), np.arange(side), indexing="ij")
+    hotspot = np.exp(-((rr.flatten() - 2) ** 2 + (cc.flatten() - 2) ** 2) / 3.0)
+    tt = np.arange(t_len)
+    psi_true = 0.5 * np.outer(hotspot, tt / (t_len - 1))
+    beta0_true = -0.5
+    S_true = 0.3 * (rr.flatten() - cc.flatten()) / side
+    delta_true = 0.05 * tt
+
+    E = rng.uniform(50, 150, (n_space, t_len))
+    log_rr_true = beta0_true + S_true[:, None] + delta_true[None, :] + psi_true
+    counts = rng.poisson(E * np.exp(log_rr_true))
+    counts_flat = counts.flatten()
+
+    with pm.Model():
+        beta0 = pm.Normal("beta0", 0, 2)
+        sigma_S = pm.HalfNormal("sigma_S", 1)
+        S = pm.ICAR("S", W=W_space.astype(int), sigma=sigma_S)
+        sigma_delta = pm.HalfNormal("sigma_delta", 1)
+        delta_raw = pm.Normal("delta_raw", 0, 1, shape=t_len)
+        delta = pm.Deterministic("delta", pt.cumsum(delta_raw) * sigma_delta * 0.3)
+        sigma_psi = pm.HalfNormal("sigma_psi", 0.5)
+        psi = pm.Normal("psi", 0, sigma_psi, shape=(n_space, t_len))
+        log_rr = beta0 + S[:, None] + delta[None, :] + psi
+        mu = E * pm.math.exp(log_rr)
+        pm.Poisson("y", mu=mu.flatten(), observed=counts_flat)
+        idata1 = pm.sample(800, tune=1500, chains=4, target_accept=0.95,
+                            random_seed=1, progressbar=False,
+                            compute_convergence_checks=False)
+        pm.compute_log_likelihood(idata1)
+    ndiv1 = int(idata1.sample_stats["diverging"].sum())
+    psi_est1 = idata1.posterior["psi"].values.reshape(-1, n_space, t_len).mean(axis=0)
+
+    # Type IV: 固有基底によるsum-to-zero制約付きクロネッカー積構造(Clayton制約の直接実装)
+    eigval_s, eigvec_s = np.linalg.eigh(Q_space)
+    eigval_t, eigvec_t = np.linalg.eigh(Q_time)
+    V_s, lam_s = eigvec_s[:, 1:], eigval_s[1:]
+    V_t, lam_t = eigvec_t[:, 1:], eigval_t[1:]
+    inv_scale = 1.0 / np.sqrt(np.outer(lam_s, lam_t))
+
+    with pm.Model():
+        beta0 = pm.Normal("beta0", 0, 2)
+        sigma_S = pm.HalfNormal("sigma_S", 1)
+        S = pm.ICAR("S", W=W_space.astype(int), sigma=sigma_S)
+        sigma_delta = pm.HalfNormal("sigma_delta", 1)
+        delta_raw = pm.Normal("delta_raw", 0, 1, shape=t_len)
+        delta = pm.Deterministic("delta", pt.cumsum(delta_raw) * sigma_delta * 0.3)
+        sigma_psi = pm.HalfNormal("sigma_psi", 0.5)
+        xi_raw = pm.Normal("xi_raw", 0, 1, shape=(n_space - 1, t_len - 1))
+        xi = xi_raw * pt.as_tensor(inv_scale) * sigma_psi
+        psi = pm.Deterministic("psi", pt.as_tensor(V_s) @ xi @ pt.as_tensor(V_t).T)
+        log_rr = beta0 + S[:, None] + delta[None, :] + psi
+        mu = E * pm.math.exp(log_rr)
+        pm.Poisson("y", mu=mu.flatten(), observed=counts_flat)
+        idata4 = pm.sample(800, tune=1500, chains=4, target_accept=0.95,
+                            random_seed=2, progressbar=False,
+                            compute_convergence_checks=False)
+        pm.compute_log_likelihood(idata4)
+    ndiv4 = int(idata4.sample_stats["diverging"].sum())
+    psi_est4 = idata4.posterior["psi"].values.reshape(-1, n_space, t_len).mean(axis=0)
+
+    loo1 = az.loo(idata1)
+    loo4 = az.loo(idata4)
+    cmp = az.compare({"Type I(非構造)": idata1, "Type IV(クロネッカー積構造)": idata4})
+
+    corr1 = np.corrcoef(psi_true.flatten(), psi_est1.flatten())[0, 1]
+    corr4 = np.corrcoef(psi_true.flatten(), psi_est4.flatten())[0, 1]
+
+    fig = plt.figure(figsize=(13, 8))
+    gs = fig.add_gridspec(2, 3, height_ratios=[1, 0.8])
+
+    vmax_true = np.abs(psi_true).max()
+    ax0 = fig.add_subplot(gs[0, 0])
+    im0 = ax0.imshow(psi_true, origin="lower", aspect="auto", cmap="RdBu_r",
+                      vmin=-vmax_true, vmax=vmax_true)
+    ax0.set_title("真の交互作用 psi_true")
+    ax0.set_xlabel("時間 t")
+    ax0.set_ylabel("地区(空間)")
+    fig.colorbar(im0, ax=ax0, fraction=0.046)
+
+    # 推定パネルは真値より振幅が縮小する(事後平均の収縮)ため、パネルごとに色スケールを揃える
+    vmax_est = max(np.abs(psi_est1).max(), np.abs(psi_est4).max())
+    ax1 = fig.add_subplot(gs[0, 1])
+    im1 = ax1.imshow(psi_est1, origin="lower", aspect="auto", cmap="RdBu_r",
+                      vmin=-vmax_est, vmax=vmax_est)
+    ax1.set_title(f"Type I推定(相関={corr1:.2f})\ndivergence={ndiv1}")
+    ax1.set_xlabel("時間 t")
+    fig.colorbar(im1, ax=ax1, fraction=0.046)
+
+    ax2 = fig.add_subplot(gs[0, 2])
+    im2 = ax2.imshow(psi_est4, origin="lower", aspect="auto", cmap="RdBu_r",
+                      vmin=-vmax_est, vmax=vmax_est)
+    ax2.set_title(f"Type IV推定(相関={corr4:.2f})\ndivergence={ndiv4}")
+    ax2.set_xlabel("時間 t")
+    fig.colorbar(im2, ax=ax2, fraction=0.046)
+
+    ax3 = fig.add_subplot(gs[1, :])
+    labels = list(cmp.index)
+    elpd_diffs = [float(cmp.loc[lbl, "elpd_diff"]) for lbl in labels]
+    dses = [float(cmp.loc[lbl, "dse"]) for lbl in labels]
+    colors = [COLOR_OK, COLOR_ALT]
+    ax3.barh(labels, elpd_diffs, xerr=dses, color=colors, height=0.5, capsize=4)
+    for i, v in enumerate(elpd_diffs):
+        ax3.annotate(f"{v:+.1f}", (v, i), xytext=(6, 0), textcoords="offset points",
+                     va="center", fontsize=10)
+    ax3.axvline(0, color="black", lw=1)
+    ax3.set_xlabel("最良モデルからのelpd差(0=最良、誤差棒=dse)")
+    ax3.set_title("Type IとType IVのLOO予測性能比較(誤差棒がdseを超えて0から離れなければ有意差なし)")
+
+    fig.suptitle("空間時系列BYM: Type I(非構造)とType IV(クロネッカー積構造)の交互作用比較", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(OUT_DIR / "knorr_held_type_i_vs_iv.png")
+    plt.close(fig)
+
+    print(f"knorr_held_type_i_vs_iv.png saved (Type I: divergence={ndiv1} corr={corr1:.3f} "
+          f"elpd={float(loo1.elpd):.1f}se={float(loo1.se):.1f}, "
+          f"Type IV: divergence={ndiv4} corr={corr4:.3f} "
+          f"elpd={float(loo4.elpd):.1f}se={float(loo4.se):.1f})")
+
+
 if __name__ == "__main__":
     plot_icar_field_recovery()
     plot_bym_nonidentifiability()
     plot_bym2_reparameterization_fix()
     plot_lgcp_latent_vs_hsgp()
+    plot_knorr_held_type_i_vs_iv()
