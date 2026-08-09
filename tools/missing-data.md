@@ -6,6 +6,10 @@
 
 ### MCAR/MAR/MNAR(欠測メカニズムの分類)
 
+![MCAR/MAR/MNAR: MCARでは欠測(オレンジ)がx-y平面全体にランダムに散らばるが、MARでは観測済みxが大きい側に、MNARではyの値そのものが大きい側に欠測が偏って集中する](../assets/missing-data/mcar_mar_mnar_mechanisms.png)
+
+*3つの欠測メカニズムを合成データ(y=2.0+1.5x+noise)で実際に再現した結果(生成スクリプト: [scripts/generate_missing_data_plots.py](../scripts/generate_missing_data_plots.py))。*
+
 - **定義**: 欠測が起こる確率が何に依存するかによる3分類。Rubin (1976) の枠組み。MCAR(Missing Completely At Random)は欠測確率が観測値・欠測値のどちらにも依存しない。MAR(Missing At Random)は欠測確率が観測されている他の変数には依存するが、欠測している値自体には依存しない。MNAR(Missing Not At Random)は欠測確率が欠測している値そのものに依存する。
 - **数式・仕組み**: 欠測指標`R`(観測=1、欠測=0)、観測されうる値`Y`、観測済み共変量`X`として、`P(R|Y,X) = P(R|X)`(Yに依存しない)ならMAR、さらに`P(R|Y,X) = P(R)`(XにもYにも依存しない)ならMCAR、`P(R|Y,X)`がYにも依存すればMNAR。MCARはMARの特殊ケース(MARの方が広い仮定)。
 - **使い分け**: MCAR/MARであれば欠測を無視した尤度ベースの処理(完全ケース分析でも係数は不偏、あるいはフルベイズ同時モデル・[MICE](#micemultiple-imputation-by-chained-equations))で妥当な推定が得られる。MNARが疑われる場合は欠測メカニズム自体を尤度に組み込む([Selection Model](#selection-modelheckman型)・[Pattern-Mixture Model](#pattern-mixture-model))必要があるが、MNARかどうか自体は観測データだけからは検証できない(欠測している値は見えないため)、という原理的な非識別性を持つ。実務では、完全観測に近い共変量(人口規模など)と欠測パターンの関係をEDAで確認し、MARの物語がどこまで説得力を持つかを検討することが多い([techniques/eda.md](../techniques/eda.md#欠測パターンの可視化から欠測メカニズムの仮説とモデル設計の根拠を得る)参照)。
@@ -14,6 +18,10 @@
 ---
 
 ### フルベイズ同時モデル(欠測値の潜在変数としての自動補完)
+
+![フルベイズ同時モデルはMAR下で完全ケース分析(CC)よりバイアスを大きく減らす(周辺平均バイアス-0.434→-0.061)が、MNAR下では改善するもののバイアスが残る(-0.981→-0.361)](../assets/missing-data/full_bayes_bias_comparison.png)
+
+*PyMCのマスク配列(`numpy.ma.MaskedArray`)による自動補完を、CC(完全ケース分析)と実際に比較した結果(生成スクリプト: [scripts/generate_missing_data_plots.py](../scripts/generate_missing_data_plots.py))。*
 
 - **定義**: 欠測値を通常の確率変数(観測されていれば尤度に、欠測していれば事前分布とモデル構造だけから決まる潜在変数)としてモデルに含め、パラメータと同時にサンプリングする方法。PyMCでは`observed`にマスク配列(欠測箇所をマスクした`numpy.ma.MaskedArray`)を渡すと自動的にこの扱いになる。
 - **数式・仕組み**: 観測されている`y_obs`は通常通り尤度に寄与し、欠測している`y_mis`はモデルの構造(回帰式・他の変数との関係)と事前分布だけから事後分布が決まる確率変数として扱われる。パラメータの事後分布は、観測データと欠測値の両方についての同時事後分布を周辺化した形で得られる。
