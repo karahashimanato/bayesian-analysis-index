@@ -6,6 +6,10 @@
 
 ### ICAR(Intrinsic Conditional Autoregressive)
 
+![ICAR: 8x8格子グラフ上の真の空間場(左、左上が低・右下が高い勾配)を、ICARモデルで実際にPyMCフィットして復元した結果(右、相関0.81、divergence=0)](../assets/spatial-models/icar_field_recovery.png)
+
+*Poisson相対リスクモデル(疾病マッピング風の合成データ)をPyMCで実際にサンプリングした結果(生成スクリプト: [scripts/generate_spatial_models_plots.py](../scripts/generate_spatial_models_plots.py))。*
+
 - **定義**: 隣接する地区同士の値が似た値を持ちやすいという空間相関を、隣接地区間の差の二乗和にペナルティをかけることで表現する事前分布。エリアデータ(行政区画など、隣接グラフを持つ集計データ)に対する空間ベイズモデルの基礎になる。
 - **数式・仕組み**: 対数密度は`-0.5 * Σ_{i~j} (φ_i - φ_j)² / σ_φ²`(`i~j`は地区iと地区jが隣接することを表す)。これは精度行列がグラフラプラシアン`Q`(次数を対角、隣接を-1とする行列)である多変量正規分布に相当するが、`Q`は全体を平行移動しても対数密度が変わらないため本質的に特異(singular)であり、識別のためsum-to-zero制約(`Σφ_i=0`)が必要になる。
 - **使い分け**: 空間構造のみを表現したいベースラインとして使う。PyMCの`pm.ICAR`は対数密度(`logp`)のみを実装し`random()`を持たないため、`pm.sample_prior_predictive()`や`pm.model_to_graphviz`がそのままでは使えない制約がある([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#pmicarは前向きサンプリング不可な上logpの閉形式共分散で代替できる)参照)。地区固有の非構造的なばらつきも同時に表現したい場合は[BYM](#bymbesag-york-mollié)を検討する。
@@ -15,6 +19,10 @@
 
 ### BYM(Besag-York-Mollié)
 
+![BYM: theta[0]とphi[0]の事後サンプルは強い負の相関(r=-0.70)を持ち、データがtheta+phiの合計しか制約しないridge型非識別性を示す。sigma_thetaのr_hat=1.414と収束に失敗するが、sigma_phiのr_hat=1.002は健全](../assets/spatial-models/bym_nonidentifiability.png)
+
+*8x8格子グラフ上の合成データでBYMモデルを実際にPyMCでサンプリングした結果(生成スクリプト: [scripts/generate_spatial_models_plots.py](../scripts/generate_spatial_models_plots.py))。*
+
 - **定義**: [ICAR](#icarintrinsic-conditional-autoregressive)の空間構造項`φ`に加えて、地区固有の非構造的なばらつき`θ`を導入した疾病マッピングの標準モデル(Besag, York & Mollié 1991)。
 - **数式・仕組み**: `y_i ~ Poisson(E_i・exp(β0+β1・x_i+θ_i+φ_i))`、`θ_i ~ Normal(0,σ_θ)`(非構造項)、`φ ~ ICAR(σ_φ)`(空間構造項)。観測件数`y`と期待件数`E`(標準化死亡比のオフセット)を組み合わせた相対リスクのPoissonモデルとして書かれることが多い。
 - **使い分け**: 「隣接地区間で共有される空間相関」と「地区固有の孤立したばらつき」を分けて推定したい場合の基本形。ただし`σ_θ`と`σ_φ`は事後分布上で分離しにくい(θ単体・φ単体のESSが、その合成量`θ+φ`より明確に低くなる)という教科書的な非識別性を抱える。「θとφの内訳は決まりにくいが、両者の合計は比較的よく決まる」という構造は[tools/posterior-pathologies.md](posterior-pathologies.md#ridge型非識別性)のridge型非識別性と同型で、[BYM2](#bym2)による再パラメータ化で緩和する([techniques/reparameterization.md](../techniques/reparameterization.md#bymのθφ分離の非識別性はbym2のσρ再パラメータ化で解消する)参照)。
@@ -23,6 +31,10 @@
 ---
 
 ### BYM2
+
+![BYM2: sigma/rhoへの再パラメータ化で、BYMのsigma_theta/sigma_phiが持つr_hat=1.414の収束失敗が、r_hat=1.002まで解消する(rho事後平均=0.50)](../assets/spatial-models/bym2_reparameterization_fix.png)
+
+*同一の合成データに対しBYMとBYM2を両方実際にPyMCでサンプリングし比較した結果(生成スクリプト: [scripts/generate_spatial_models_plots.py](../scripts/generate_spatial_models_plots.py))。*
 
 - **定義**: BYMの非構造項`θ`・空間構造項`φ`を、「全体スケール`σ`」と「空間分散の割合`ρ`」への再パラメータ化によって分離しやすくした改良版(Riebler et al. 2016)。
 - **数式・仕組み**: `σ・(√(1-ρ)・θ* + √(ρ/scale)・φ*)`(`θ*~Normal(0,1)`、`φ*~ICAR(1)`)。`scale`はグラフラプラシアンの一般化逆行列(Moore-Penrose逆行列)から計算するスケーリング係数で、`ρ`の解釈(空間分散の割合)を隣接グラフの構造によらず一定に保つ役割を持つ([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#bym2のスケーリング係数はグラフラプラシアンの一般化逆行列から自前で計算する)参照)。
