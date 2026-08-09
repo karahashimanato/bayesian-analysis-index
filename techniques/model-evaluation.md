@@ -41,6 +41,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### LOOで差がつかなくても、分散成分を安定して分離推定できることに価値がある場合がある
 
+![LOO(az.compare)ではICAR・BYM・BYM2の3モデルを区別できない(最大|elpd_diff|/dse=1.08倍)が、BYM2の再パラメータ化はLOOの結果とは独立にサンプリングの健全性(r_hat)を改善する(BYM r_hat=1.014, BYM2 r_hat=1.006、BYM2のrho事後平均=0.51)](../assets/model-evaluation/loo_variance_separation.png)
+
+*6x6格子の疾病マッピング風データにICAR・BYM・BYM2を実際にPyMCでフィットし、az.compareとr_hatを比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: BYM2はICAR/BYMに対し`az.compare`によるLOO-CVの`elpd_diff`がいずれも標準誤差`dse`の範囲内に収まり、3モデルの予測性能は統計的に区別できない。
 - **対処**: 予測性能(LOO)という1軸だけでモデルの価値を判断せず、非構造項・空間構造項の分散成分を安定して分離推定できているか(パラメータ間の事後相関、r_hat)という推論の健全性を別軸で評価する。
 - **なぜ効くか**: LOOは「未見データへの予測分布の良さ」だけを測る指標であり、モデル内部のパラメータが解釈可能な形で安定して推定できているかは測らない。両者を混同すると「LOOで差がないなら再パラメータ化(BYM2化)は不要」という誤った判断をしてしまう。BYM2による分散成分の分離安定化そのものは[techniques/reparameterization.md](reparameterization.md#bymのθφ分離の非識別性はbym2のσρ再パラメータ化で解消する)を参照。
@@ -49,6 +53,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### Pareto k̂の警告が多い場合、要約統計量(elpd_diff)と個票レベルの精度を分けて評価する
+
+![少数の極端な外れ値を含む40点にNormal尤度の線形回帰をフィットすると、Pareto k_hatが2点(5%)で警告閾値0.7を超える(最大1.69)が、頑健なStudentT尤度モデルとのelpd_diff比較(|elpd_diff|=156.9, dse=33.7, 4.7倍)は明確に有意なまま成立する](../assets/model-evaluation/pareto_khat_summary_vs_pointwise.png)
+
+*外れ値を含む合成データにNormal尤度・StudentT尤度の2つの回帰を実際にPyMCでフィットし、`az.loo`のpointwise診断と`az.compare`を両方計算した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: LOOのPareto k̂診断で、1,320観測中500件超が $\hat{k}>0.7$(重要度サンプリングの精度低下を示す閾値)の警告を出した。
 - **対処**: `elpd_diff`の大きさが標準誤差`dse`の何倍かという要約レベルの判断(この事例では約4.4倍で明確)と、個々の観測点のLOO値がどれだけ信頼できるかという個票レベルの判断を分けて報告する。後者には留保が必要である旨を明示する。
@@ -59,6 +67,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### 意思決定に使う推定は、信用区間が安定している範囲に限定する
 
+![3次多項式回帰の95%信用区間の幅はデータが疎な端で急拡大する(x=0で幅0.28→x=3で幅1.26、4.4倍)一方、真のピーク位置はデータが密な領域内で安定して推定できる(事後サンプル間の標準偏差0.13)](../assets/model-evaluation/credible_interval_edge_instability.png)
+
+*データが疎な領域を含む3次多項式回帰を実際にPyMCでフィットし、信用区間幅とピーク位置の事後サンプル間のばらつきを比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: 限界効果や変曲点がデータの疎な領域(端の方)に出た場合、それは真の構造ではなく過適合の産物である可能性がある。
 - **対処**: 変曲点やピークがデータの疎な端に出ていないか確認し、出ている場合はモデルを複雑にするのではなく「信頼できる適用範囲を明示して打ち切る」方針を取る。
 - **なぜ効くか**: モデルの複雑化は新たな非識別性を生みうる([reparameterization.md](reparameterization.md)参照)一方、適用範囲を正直に絞ることは副作用がなく、実務判断としても誠実。
@@ -67,6 +79,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### 階層モデルの収縮(shrinkage)バイアスは事前分布の調整だけでは消えないことがある
+
+![K=20腕の階層Beta-Binomialモデルは全体MAEをMLEより下げる(MLE=0.054 vs 階層=0.050)が、真のCTRが高い腕(上位25%)を平均-0.043過小評価し、低い腕(下位25%)を平均+0.038過大評価する収縮バイアスを持つ(MLEの同バイアスはそれぞれ-0.010, +0.001とはるかに小さい)](../assets/model-evaluation/hierarchical_shrinkage_bias.png)
+
+*K=20腕のCTRを階層Beta-Binomialモデルで実際にPyMCでフィットし、MLE(腕ごとの観測比率)と比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: 階層DM推定量は単純平均よりMAEが約1/3小さく全体としては優れているが、真のCTRが高い腕を体系的に過小評価し、低い腕を過大評価する収縮バイアスを持つ。Student-t事前分布や事前分布スケールの変更を試しても緩和できなかった。
 - **対処**: 「全体の誤差(MAE)が小さいこと」と「両端の腕で系統的にバイアスがあること」を分けて評価する。今回の試行数では事後分布がすでにデータ支配的(事前分布の形をほぼ無視する水準)であることを確認し、緩和策の限界として記録した。
@@ -77,6 +93,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### 特殊構造の下で推定量どうしが一致することを確認し、実装の妥当性検証に使う
 
+![K=4腕のログ収集方策が一様ランダム(評価方策と同一)だとDM・IPS・SNIPSの3推定量がほぼ完全に一致するが、ログ収集方策が偏っている場合は3推定量の間のばらつき(max-min)が一様時の約4.9倍に拡大する(300回のシミュレーション平均)](../assets/model-evaluation/ope_special_case_identity.png)
+
+*K=4腕のオフライン方策評価をシミュレーションし、ログ収集方策が一様/偏りの2条件でDM・IPS・SNIPSの一致度を実際に比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: 複数の評価指標・推定量(SNIPS, SNDR, 単純平均DMなど)を実装した際、それぞれが独立に正しく実装されているかを検証する手段が乏しい。
 - **対処**: 「ランダム方策の一様な傾向スコア」のような特殊構造の下では、理論的に複数の推定量が数式的に一致するはずだという性質を利用し、実データで実際に一致することを確認する。
 - **なぜ効くか**: 特殊ケースでの理論的な恒等式は、実装のバグ検出に使える強力な回帰テストになる。一致しなければ実装のどこかが誤っている。各推定量そのものの定義は[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#sndr-self-normalized-dr)を参照。
@@ -85,6 +105,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### 独立した外部データ・公開指標との突き合わせで妥当性を検証する
+
+![K=8腕のログのみから算出したOPE推定値(DM)ランキングと、独立に実際に走らせたThompson Samplingが収束した腕選択頻度のランキングを突き合わせるとSpearman rho=0.71(p=0.050)の順位相関が得られる](../assets/model-evaluation/external_validation_correlation.png)
+
+*K=8腕のログデータからのOPE推定値(DM)と、同じ真の報酬構造の下で独立に走らせたThompson Samplingの収束先を実際にシミュレーションし、順位相関を計算した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: モデルの評価指標(LOO, AUC, OPE推定値など)がモデル内部で自己完結していると、「モデルの中では良く見えるが現実とズレている」可能性を排除できない。
 - **対処**: モデルの外にある独立した情報源と突き合わせる。例えば、ログのみから算出したOPE推定値ランキングと、実際の本番方策が収束した腕の選択頻度との順位相関(Spearman)を確認する(rho=0.79)。あるいは集計モデル(BigQuery側)の推定と個体レベルモデル(ローカル側)の推定を突き合わせ、集計由来のバイアス(ecological bias)が生じていないかを検証する。既知の公開オンチェーン指標(UTXO Age Bands等)との突き合わせも同じ位置づけ。
@@ -95,6 +119,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### PPCが良好でも、モデルの機構が現象を説明しているとは限らない
 
+![真の周期(25ステップ)と異なる周期(42ステップ)の構造パラメータと自由に調整可能なGaussianRandomWalk(潜在レベル)を持つモデルの事後予測(PPC、レベル込み)はデータとほぼ完全に一致する(相関=0.999)が、潜在レベルを外し構造パラメータだけで決定論的に走らせたforward-simはデータの周期性をほとんど再現できない(相関=0.209)](../assets/model-evaluation/ppc_good_mechanism_wrong.png)
+
+*真の周期25の合成データに意図的に周期42の構造項を持つモデルを実際にPyMCでフィットし、PPCとforward simulationを比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: Posterior Predictive Check(観測値が予測区間に収まる、分布形状が一致する)の結果が良好でも、それがモデルの構造(パラメータの意味する機構)が現象を正しく説明していることの証明にはならない場合がある。特に潜在変数(process noiseなど)が各時点で自由に調整可能なモデルでは、機構部分が何も説明していなくても、潜在変数側が観測値に「帳尻合わせ」して見かけ上良好なPPCを作れてしまう。
 - **対処**: 潜在変数(process noise等)を使わず、構造パラメータの事後サンプルのみで決定論的にモデルを走らせるforward simulationを行い、実データの主要な特徴(周期性など)を再現できるか検証する。
 - **なぜ効くか**: PPCは「観測値と整合する予測ができるか」しか検証しない。自由度の高い潜在変数がある場合、その整合性はモデル構造の正しさではなく潜在変数の柔軟性に由来しうる。潜在変数を封じた状態での検証によって、初めて「機構による説明」と「自由度による帳尻合わせ」を区別できる。process noise付き非線形状態空間モデルそのものの定義は[tools/state-space-models.md](../tools/state-space-models.md#非線形状態空間モデルprocess-noise付き)を参照。
@@ -103,6 +131,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### 手法比較の結論はタスクの次元・複雑さに依存し、単純に外挿できない
+
+![last-layer LaplaceとDeep Ensemblesを実際にPyTorchで学習すると、1次元・訓練分布内のテストでは両手法のtest NLLが近い(last-layer=-0.43 vs Deep Ensembles=-0.42)が、6次元・訓練域から離れた分布シフトのあるテストではlast-layerが大幅に悪化する(last-layer=135.0 vs Deep Ensembles=6.2)](../assets/model-evaluation/dimension_dependent_conclusions.png)
+
+*last-layer LaplaceとDeep Ensemblesを1次元(訓練分布内)と6次元(分布シフトあり)の2タスクで実際にPyTorchで学習し、test NLLを比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: 低次元・少数データの合成タスクで手法A(例: Laplace近似)が最良という結論を、そのまま高次元・実データのタスクにも当てはまるはずだと想定してしまう。
 - **対処**: 1次元合成回帰で得た手法の順位付けを、8次元の実データ・本物の分布シフト(地理的なOODなど)でも再検証する。次元・データ量・分布シフトの性質が変わるタスクを複数横断して初めて、「どの条件でどの手法が強いか」を言える。
@@ -113,6 +145,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### 対策手法の効果は失敗モードごとに非対称であり、1指標だけで「改善した」と判断しない
 
+![Anchored Ensembles(各メンバー自身の初期値へ正則化)はweight-decay(原点へ正則化)と同じ強さの正則化でも、失敗モードによって効果が非対称: 訓練範囲外への外挿でのepistemic不確実性は大きく減った(weight_decay=0.171→anchored=0.075)一方、訓練範囲内の疎な補間領域(gap)でのepistemicはむしろ僅かに増えた(weight_decay=0.066→anchored=0.078)](../assets/uncertainty-quantification-methods/anchored_ensembles_extrapolation.png)
+
+*[tools/uncertainty-quantification-methods.md](../tools/uncertainty-quantification-methods.md#anchored-ensembles)のAnchored Ensembles検証と同じ実験結果を再利用(生成スクリプト: [scripts/generate_uncertainty_quantification_plots.py](../scripts/generate_uncertainty_quantification_plots.py))。ここでの実測方向は文献(Pearce et al., 2018)の報告とは逆(外挿側がむしろ大きく改善)だったが、「1つの対策が2つの失敗モードに均等には効かない」という本項目の論点自体は、この非対称な結果によってむしろ裏付けられている。*
+
 - **症状**: ある対策(正則化・アンサンブルの多様化など)を加えた結果、代表的な1つの指標(test NLLなど)が改善したことをもって、狙っていた問題全体が解決したと判断してしまう。
 - **対処**: 対策が実際にどの失敗モードに効いているかを、複数の切り口(例: 「訓練範囲外への外挿」と「訓練範囲内の疎な補間領域」を別々に測る)で確認する。
 - **なぜ効くか**: 1つの対策が全ての失敗モードに均等に効くとは限らない。実際に、アンサンブルメンバーの多様性を強めるAnchored/Repulsive Ensemblesは「訓練範囲外への外挿」の検知力を大きく改善したが、「訓練範囲内の疎な補間領域」の検知力は(反発の強さをどれだけ上げても)ほぼ変化しなかった。代表的な1指標だけを見ると、後者の失敗モードが改善しないまま放置されていることを見落とす。
@@ -121,6 +157,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### 「有意なパラメータ」と「狙っていた問題の解決」は別軸で検証する
+
+![真のleverage効果(rho=-0.7)と周期8ステップの季節変動を持つ合成リターンにleverage項付きSVモデルをフィットすると、rhoの事後は0を含まず統計的に明確(事後平均-0.45、95%CI=[-0.82,-0.13]、真値を正しく検出)だが、モデルが仮定していない季節的な|リターン|の自己相関(ACF、遅れ8)は事後予測レプリカの95%範囲[-0.07,0.14]の外(実データ0.266)にあり未解決のまま](../assets/model-evaluation/significant_param_vs_solved_problem.png)
+
+*leverage効果と季節変動を併せ持つ合成リターンにleverage項付きSVモデル(pytensor.scanで再帰を実装)を実際にPyMCでフィットし、rhoの有意性とACF診断を別々に確認した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: モデルに追加したパラメータ(leverage effectの $\rho$など)が統計的に明確な値(信用区間が0を含まない)を示したため、それによって当初解決したかった問題(ACFのギャップなど)も解決したと判断してしまう。
 - **対処**: パラメータの有意性(事後分布が0を含まないか)と、当初の診断で見つかった具体的な問題(可視化・診断指標の特定のギャップ)が実際に解消したかを、別々に確認する。
@@ -192,6 +232,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### 欠測メカニズムの影響は、集計量の種類によって非対称に効く
 
+![観測済み共変量(GDP相当)にのみ依存するMAR欠測を300回反復シミュレーションすると、完全ケース分析(CC)の回帰係数バイアスはMCAR(-0.000)・MAR(+0.008)どちらもほぼゼロだが、周辺平均のバイアスはMCARでは無視できる(-0.003)一方MARでは大きく残る(-0.430)](../assets/model-evaluation/missing_mechanism_asymmetric_bias.png)
+
+*観測済み共変量に依存するMAR欠測を実際に300回反復シミュレーションし、完全ケース分析の回帰係数バイアスと周辺平均バイアスを比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: 欠測を無視した完全ケース分析(CC)がMAR(観測済みの共変量に依存する欠測)の下でどれだけバイアスを持つかを検証する際、「回帰係数が歪んだかどうか」だけを確認すると、単純な集計量(周辺平均など)ではもっと深刻な歪みが起きていることを見逃す。
 - **対処**: 回帰係数(モデルに含まれる共変量に依存するMARなら理論上不偏)と、周辺平均のような単純な要約統計量を分けて評価する。bayesian-missing-dataでは、`log(GDP per capita)`をMARの駆動変数として`under5_mortality`に欠測を注入したところ、回帰係数`beta_gdp`(真値-0.660)はCCでもMCAR/MARどちらでもほぼ歪まなかった(-0.636/-0.636)一方、周辺平均(真値2.757)のバイアスはMCARで+0.077だったのがMARでは-0.275まで拡大した(低GDP=高死亡率国が系統的に欠測から除外されるため)。フルベイズ(-0.022)・MICE(-0.027)はどちらのメカニズムでもこのバイアスを1桁小さく抑えた。
 - **なぜ効くか**: 回帰係数はモデルに含まれる共変量で条件付けた関係を推定するため、MARの定義(欠測が観測済みの共変量だけに依存する)そのものによって理論上保護される。一方、周辺平均は共変量による条件付けを経ないただの集計であり、欠測パターンが共変量と相関していれば(=MAR)、除外された行の偏りをそのまま引き継いで歪む。「回帰は頑健、要約統計は脆弱」という非対称性を知っておくことは、集計指標だけでモデルの良し悪しを判断しない([本ページ冒頭](#集計指標だけでモデルの良し悪しを判断しない)参照)こととも通じる、欠測データ特有の落とし穴。
@@ -210,6 +254,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 ### 次元の呪いは、BOが機能しなくなることではなく必要な評価回数の増加として現れる
 
+![同じGP-EIベイズ最適化を1次元と4次元の単峰目的関数に実際に走らせると、1次元はregret<0.05にわずか3反復目で到達するが、4次元は40反復(初期点含む)を尽くしても到達せず、最終regret=0.093に留まる](../assets/model-evaluation/dimension_curse_iteration_count.png)
+
+*1次元・4次元の単峰目的関数にGP-EIベイズ最適化(ランダム候補点上でEIを最大化)を実際に走らせ、真の最適点に対するregretの推移を比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
+
 - **症状**: 次元が増えるとベイズ最適化(BO)が「使えなくなる」というイメージを持ちがちだが、実際にどう劣化するのかを定量的に確認しないまま次元数だけで手法の適用可否を判断してしまう。
 - **対処**: 同程度のregretに到達するまでに必要な反復数を、次元数の異なるケース間で比較する。bayesian-optimizationでは、1次元ベンチマークがわずか8反復でregret<1e-3に達したのに対し、6次元Hartmannは1〜6反復目regret≈2.07で停滞したのち24反復目で急激に収束し、30反復でregret=0.0035に達した。
 - **なぜ効くか**: 次元の呪いは「同程度の精度を得るために必要な評価回数(実世界では実験コスト)が増える」という形で現れるのであって、BOのアルゴリズム自体が原理的に機能しなくなるわけではない。獲得関数の最大化に伴う組み合わせ爆発という計算上の問題([techniques/implementation-hacks.md](implementation-hacks.md#獲得関数の最大化は次元が増えるとグリッド探索が組合せ爆発するためscipyoptimizeマルチスタートに切り替える)参照)とは別物であり、両者を混同しない。
@@ -218,6 +266,10 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 ---
 
 ### ノイズのある目的関数では、探索中の指標と改めて評価した最終指標を区別する
+
+![ノイズの大きい1次元目的関数でGP-EIベイズ最適化とランダムサーチを実際に走らせると、探索中のノイズ込みrunning-bestは10回目以降ランダムサーチがわずかに上回る局面が続く(26回中17回)が、探索終了後にノイズなしの真の目的関数で再評価するとベイズ最適化が選んだ点が明確に優れる(-0.322 vs -0.729)](../assets/model-evaluation/noisy_objective_insearch_vs_final.png)
+
+*ノイズの大きい1次元目的関数にGP-EIベイズ最適化とランダムサーチを実際に走らせ、探索中のノイズ込み指標と探索終了後のノイズなしclean評価を比較した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
 - **症状**: BOの探索過程で得られたCV RMSEなどの指標だけを見て手法の優劣を判断すると、ノイズ(fold分割の揺らぎなど)による見かけ上の逆転に惑わされる。bayesian-optimizationのXGBoostハイパーパラメータ探索では、19回目の追加評価に至るまでランダムサーチの方が探索中のCV RMSEでBOを上回っていた。
 - **対処**: 探索中に使った指標(ノイズを含む)とは別に、探索終了後にテストセット(探索中は不使用)で1回だけクリーンに再評価し、その最終指標で手法を比較する。同事例では探索中のCV RMSE差(0.8%)より最終テストRMSE差(1.6%)の方が明確にBOの優位を示した。
