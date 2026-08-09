@@ -220,7 +220,107 @@ def plot_bym2_reparameterization_fix():
           f"(BYM max r_hat={rhat_bym:.3f}, BYM2 max r_hat={rhat_bym2:.3f}, rho事後平均={rho_mean:.3f})")
 
 
+def plot_lgcp_latent_vs_hsgp():
+    """LGCP(空間点過程)を12x12格子に離散化し、厳密GP(pm.gp.Latent)と
+    HSGP近似を実際にPyMCでフィットして、強度場の復元結果と実行時間を比較する。"""
+
+    rng = np.random.default_rng(17)
+
+    side = 12
+    xs, ys = np.meshgrid(np.linspace(0, 10, side), np.linspace(0, 10, side), indexing="ij")
+    coords = np.column_stack([xs.flatten(), ys.flatten()])
+
+    true_log_intensity = -1.0 + 2.0 * np.exp(
+        -((xs.flatten() - 5) ** 2 + (ys.flatten() - 6) ** 2) / 4
+    )
+    cell_area = (10 / side) ** 2
+    counts = rng.poisson(np.exp(true_log_intensity) * cell_area)
+
+    import time
+
+    t0 = time.perf_counter()
+    with pm.Model():
+        ell = pm.Gamma("ell", alpha=3, beta=1)
+        eta = pm.HalfNormal("eta", 2.0)
+        cov = eta ** 2 * pm.gp.cov.Matern52(2, ls=ell)
+        gp = pm.gp.Latent(cov_func=cov)
+        f = gp.prior("f", X=coords)
+        mu0 = pm.Normal("mu0", -1.0, 2.0)
+        pm.Poisson("y", mu=pm.math.exp(mu0 + f) * cell_area, observed=counts)
+        idata_latent = pm.sample(300, tune=500, chains=2, target_accept=0.9,
+                                  random_seed=1, progressbar=False,
+                                  compute_convergence_checks=False)
+    t_latent = time.perf_counter() - t0
+    n_div_latent = int(idata_latent.sample_stats["diverging"].sum())
+    f_latent = (idata_latent.posterior["mu0"] + idata_latent.posterior["f"]).values
+    log_int_latent = f_latent.reshape(-1, side * side).mean(axis=0)
+
+    t0 = time.perf_counter()
+    with pm.Model():
+        ell = pm.Gamma("ell", alpha=3, beta=1)
+        eta = pm.HalfNormal("eta", 2.0)
+        cov = eta ** 2 * pm.gp.cov.Matern52(2, ls=ell)
+        gp = pm.gp.HSGP(m=[12, 12], c=2.0, cov_func=cov)
+        f = gp.prior("f", X=coords)
+        mu0 = pm.Normal("mu0", -1.0, 2.0)
+        pm.Poisson("y", mu=pm.math.exp(mu0 + f) * cell_area, observed=counts)
+        idata_hsgp = pm.sample(300, tune=500, chains=2, target_accept=0.9,
+                                random_seed=2, progressbar=False,
+                                compute_convergence_checks=False)
+    t_hsgp = time.perf_counter() - t0
+    n_div_hsgp = int(idata_hsgp.sample_stats["diverging"].sum())
+    f_hsgp = (idata_hsgp.posterior["mu0"] + idata_hsgp.posterior["f"]).values
+    log_int_hsgp = f_hsgp.reshape(-1, side * side).mean(axis=0)
+
+    speedup = t_latent / t_hsgp
+
+    fig = plt.figure(figsize=(13, 8))
+    gs = fig.add_gridspec(2, 3, height_ratios=[1, 0.8])
+
+    vmin, vmax = -1.5, 1.5
+    ax0 = fig.add_subplot(gs[0, 0])
+    im0 = ax0.imshow(true_log_intensity.reshape(side, side).T, origin="lower",
+                      cmap="viridis", vmin=vmin, vmax=vmax)
+    ax0.set_title("真の対数強度場")
+    fig.colorbar(im0, ax=ax0, fraction=0.046)
+
+    ax1 = fig.add_subplot(gs[0, 1])
+    im1 = ax1.imshow(log_int_latent.reshape(side, side).T, origin="lower",
+                      cmap="viridis", vmin=vmin, vmax=vmax)
+    ax1.set_title(f"pm.gp.Latent(厳密)推定\ndivergence={n_div_latent}")
+    fig.colorbar(im1, ax=ax1, fraction=0.046)
+
+    ax2 = fig.add_subplot(gs[0, 2])
+    im2 = ax2.imshow(log_int_hsgp.reshape(side, side).T, origin="lower",
+                      cmap="viridis", vmin=vmin, vmax=vmax)
+    ax2.set_title(f"pm.gp.HSGP(近似)推定\ndivergence={n_div_hsgp}")
+    fig.colorbar(im2, ax=ax2, fraction=0.046)
+
+    ax3 = fig.add_subplot(gs[1, :])
+    labels = ["pm.gp.Latent\n(厳密GP)", "pm.gp.HSGP\n(基底関数近似)"]
+    times = [t_latent, t_hsgp]
+    colors = [COLOR_DIVERGENT, COLOR_OK]
+    ax3.barh(labels, times, color=colors, height=0.5, log=True)
+    for i, v in enumerate(times):
+        ax3.annotate(f"{v:.1f}s", (v, i), xytext=(6, 0), textcoords="offset points",
+                     va="center", fontsize=11)
+    ax3.set_xlabel("実行時間(秒、対数軸)")
+    ax3.set_title(f"12x12格子(144セル)での実行時間比較: {speedup:.1f}倍高速化")
+
+    fig.suptitle("LGCP: 厳密GPとHSGP近似の強度場推定と実行時間比較", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.savefig(OUT_DIR / "lgcp_latent_vs_hsgp.png")
+    plt.close(fig)
+
+    corr_latent = np.corrcoef(true_log_intensity, log_int_latent)[0, 1]
+    corr_hsgp = np.corrcoef(true_log_intensity, log_int_hsgp)[0, 1]
+    print(f"lgcp_latent_vs_hsgp.png saved (t_latent={t_latent:.1f}s divergence={n_div_latent} "
+          f"corr={corr_latent:.3f}, t_hsgp={t_hsgp:.1f}s divergence={n_div_hsgp} "
+          f"corr={corr_hsgp:.3f}, speedup={speedup:.1f}x)")
+
+
 if __name__ == "__main__":
     plot_icar_field_recovery()
     plot_bym_nonidentifiability()
     plot_bym2_reparameterization_fix()
+    plot_lgcp_latent_vs_hsgp()

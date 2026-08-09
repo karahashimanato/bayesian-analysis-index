@@ -54,6 +54,10 @@
 
 ### LGCP(Log-Gaussian Cox Process、空間点過程)
 
+![LGCP: 12x12格子(144セル)上でpm.gp.Latent(厳密GP)とpm.gp.HSGP(近似)を実際にPyMCでフィット。両者とも真の対数強度場のホットスポットをほぼ同等に復元する(真値との相関: 厳密GP=0.727、HSGP=0.734)が、実行時間は厳密GP=1899.8秒に対しHSGP=2.2秒と881倍高速、divergenceも厳密GP=1に対しHSGP=0](../assets/spatial-models/lgcp_latent_vs_hsgp.png)
+
+*12x12格子に離散化した合成ホットスポットデータで、厳密GPとHSGPを両方実際にPyMCでサンプリングし比較した結果(生成スクリプト: [scripts/generate_spatial_models_plots.py](../scripts/generate_spatial_models_plots.py))。*
+
 - **定義**: 隣接グラフを持たない連続空間上のイベント(地震の震源など)の発生強度を、ガウス過程で表現する点過程。[Hawkes過程](observation-models.md#hawkes過程点過程の尤度)が時間軸上の自己励起点過程であるのに対し、LGCPは空間(または時空間)上の強度場そのものをGPでノンパラメトリックに推定する。
 - **数式・仕組み**: 対象領域を格子(セル)に離散化し、各セルの対数強度`log λ(s)`にMatérnやRBFなどのカーネルを持つガウス過程を割り当て、セルごとのイベント件数を`Poisson(λ(s)・|セル面積|)`でモデル化する。GPのハイパーパラメータ(長さスケール・分散)は、既存のプロジェクトが使う一般的なチュートリアルの値をそのまま流用せず、実際のイベント分布のスケール(震源間の最近傍距離など)からprior predictive checkで導出する([techniques/prior-predictive-check.md](../techniques/prior-predictive-check.md#gpのハイパーパラメータもチュートリアルの値を流用せず対象データのスケールから導出する)参照)。
 - **使い分け**: イベントの発生時刻ではなく発生位置そのものの集中度(ホットスポット)を推定したい場合に使う。厳密なGP(`pm.gp.Latent`、Cholesky分解)は、長さスケールの事後がグリッド間隔に対して短い領域に迷い込むと共分散行列が悪条件化し、divergenceという形では現れないままNUTSのサンプリングが実質的に停止する病理を起こしうる([tools/posterior-pathologies.md](posterior-pathologies.md#gpの共分散行列悪条件化によるサンプリング停止divergenceに現れない病理)参照)。`pm.gp.HSGP`(Hilbert空間近似)に置き換えると共分散行列そのものを構成しないため数値的に安定する([tools/inference-methods.md](inference-methods.md#pmgplatent--hsgp基底関数近似)参照)。
