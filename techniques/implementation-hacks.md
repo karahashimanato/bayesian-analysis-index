@@ -6,6 +6,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 
 ### `pytensor.scan` の `sequences` で時変パラメータを実装する
 
+![scanのsequencesでβ(t)を渡した季節性SIRモデルを実際にPyMCでフィットし、真の季節振幅A=0.35に対し事後平均A=0.349を復元できることを示す(左: 真のβ(t)と事後平均β(t)・95%区間、右: 週次新規感染者数の観測データと事後予測)](../assets/implementation-hacks/scan_sequences_seasonal_beta.png)
+
+*季節変動するβ(t)をscanの`sequences`引数で状態遷移(オイラー法)に渡すSIRモデルを実際にPyMCでフィットし、観測データから季節振幅Aを復元できることを検証した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: β(t)のように時刻ごとに値が変わるパラメータを微分方程式の数値積分(オイラー法)に組み込みたい。
 - **対処**: `pytensor.scan` の `sequences` 引数(ステップごとに異なる値を渡す)を使って、季節変動するβ(t)のような時変パラメータを実装する。
 - **登場プロジェクト**: [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sirs-米国季節性インフルエンザ)
@@ -38,6 +42,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 
 ### 打ち切り時刻ちょうどのゼロ除算をわずかなクリップで回避する
 
+![n=300の生存データを実際にシミュレートし、行政打ち切りがt_max=24.0ちょうどに集中する設計にすると、打ち切り分布のKaplan-Meier生存関数G(t)がt_maxで正確にG(t_max)=0.000000へ落ちること、そのままでは1/G(t)がt_maxでゼロ除算になるがt_max×0.999にクリップするとG=0.831694(1/G=1.20)と有限値になることを示す](../assets/implementation-hacks/censoring_clip_zero_division.png)
+
+*打ち切り時刻ちょうどにG(t)がゼロになる現象と、t_maxをわずかにクリップすることでゼロ除算を回避できることを、実際のKaplan-Meier計算で再現した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: IPCW(逆確率重み付け)で、最大生存時間に生存者が集中していると打ち切り生存確率 `G(t_max) = 0` となり、Brier Score/AUC計算がゼロ除算でクラッシュする。
 - **対処**: テストデータの最大時間をごくわずかに(例: 72.5ヶ月→72.4ヶ月)クリップする。IPCWそのものの定義は[tools/statistical-biases.md](../tools/statistical-biases.md#ipcw逆確率重み付けinverse-probability-of-censoring-weighting)を参照。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#診断実装における重要ハック)
@@ -45,6 +53,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 ---
 
 ### 乱数シードは全notebookで統一する
+
+![独立推定と階層縮小推定を比較する同一のシミュレーションを30種類の乱数シードで繰り返すと、RMSE差(独立推定−階層縮小推定)は平均0.0035・標準偏差0.0089と、単発のrunでは階層推定が「悪化」して見えるケースが3/30回発生する(左)。累積平均をとって初めて「階層推定が優る」という結論が安定する(右)](../assets/implementation-hacks/seed_consistency_effect.png)
+
+*独立推定 vs 階層縮小推定の比較を、乱数シードを変えながら30回繰り返して再現した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。シードを固定しない単発のrunでは、本質的な差より乱数由来のばらつきの方が大きく見えることがある。*
 
 - **症状**: 複数のnotebookにまたがる分析で乱数シードがバラバラだと、結果の再現性が失われ、notebook間の比較(独立版 vs 階層版のシミュレーション結果など)がノイズなのか本質的な差なのか判断しづらくなる。
 - **対処**: `np.random.default_rng(42)` のように、シード値を固定した乱数生成器を全notebookで統一して使う。
@@ -62,6 +74,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 ---
 
 ### ローカルで捌けない規模のデータは「集計→ローカル推定」と「サンプル抽出→検証」の二段構えにする
+
+![真の個体内傾き0.8で生成した40群のシミュレーションデータで、群平均だけを使った集計回帰の傾きは-0.639と符号すら逆転するのに対し、個体レベルデータを群内偏差(群平均からの乖離)に回帰すると0.873と真の値に近い推定が得られることを示す](../assets/implementation-hacks/ecological_bias_two_stage.png)
+
+*群間の交絡(集計レベルの傾向)と真の個体内関係が逆符号になるよう設計したシミュレーションで、集計回帰と個体レベル(群内偏差)回帰の傾きを実際に計算して比較した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。集計ステージだけではこのecological biasに気づけない。*
 
 - **症状**: 数億件規模のデータをそのままローカルでNUTSサンプリングするのは非現実的だが、集計してしまうと集計由来のバイアス(ecological bias)が生じていないかを検証する術がなくなる。
 - **対処**: (1)BigQuery側で必要な粒度に集計し、その小さな集計テーブルに対してローカルのPyMC/NUTSでモデルをフィットするステージと、(2)層化ランダムサンプリングで抽出した生の個体レベルデータに対し、SVI(変分推論)など軽量な手法で別途モデルをフィットし、(1)の集計が真の関係を歪めていないかを検証するステージを両方用意する。
@@ -154,6 +170,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 
 ### `pm.ICAR`は前向きサンプリング不可な上、`logp`の閉形式共分散で代替できる
 
+![5x5格子(N=25)で、精度行列Q_full=Q/σ²+J/(0.001N)²から閉形式で生成した300サンプルについて、pm.ICARのlogpと閉形式の二次形式から計算したlogpを比較すると最大絶対差1.23e-11で完全一致することを示す(左)。閉形式MVNからの前向きサンプリングの経験分散も理論分散と整合する(右)](../assets/implementation-hacks/icar_closed_form_equivalence.png)
+
+*pm.ICARのソースコードのlogp実装を数式的に整理し、独自に構築した精度行列Q_fullの二次形式から計算したlogpと、pm.ICARが実際に返すlogpを同一サンプル集合で突き合わせて検証した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: `pm.ICAR`は対数密度(`logp`)のみを実装し`random()`を持たないため、`pm.sample_prior_predictive()`が`NotImplementedError: Cannot sample from ICAR prior`で失敗する。同じ理由で`pm.model_to_graphviz`(プレートサイズを決定するため変数を実際に評価しようとする)も失敗する。
 - **対処**: `pm.ICAR`のドキュメントに記載された対数密度を整理すると、精度行列`Q/σ²+J/(0.001N)²`(`Q`=グラフラプラシアン、`J`=全要素1の行列)を持つ多変量正規分布と厳密に等価であることが分かる。この閉形式の共分散行列を使って手動でprior predictiveを実装し、`pm.ICAR`の`logp`と数値的に完全一致することを検証した上で使う。モデル構造図(`model_to_graphviz`)自体は本質的に代替できないため省略する。
 - **なぜ効くか**: `pm.ICAR`が`random()`を持たないのはICARの精度行列が特異(singular)であることに起因する実装上の制約であり、閉形式の等価な多変量正規分布を経由すれば、乱数生成というAPIの制約を回避しつつ数式的な妥当性は保てる。
@@ -162,6 +182,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 ---
 
 ### BYM2のスケーリング係数は、グラフラプラシアンの一般化逆行列から自前で計算する
+
+![格子ノード数N=16,36,64,100それぞれについてグラフラプラシアンの一般化逆行列からスケーリング係数を実際に計算すると、0.4716から0.6449までグラフ構造ごとに異なることを示す(左)。N=36格子の実データに正しいscale=0.5515を使うと事後平均rho=0.804がそのまま実際の空間分散比率を表すが、誤ってN=16格子のscale=0.4716を借用すると同じrho値の実際の比率は0.940にずれる(右)](../assets/implementation-hacks/bym2_scaling_factor_generalized_inverse.png)
+
+*複数サイズの格子グラフでスケーリング係数(グラフラプラシアンの一般化逆行列の対角成分の幾何平均)を実際に計算し、グラフ構造依存であることを確認した上で、誤ったscaleを流用した場合にrhoの値と実際の空間分散比率との対応がどれだけずれるかを、実際にBYM2モデルをPyMCでフィットして得たrho事後分布をもとに示した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
 
 - **症状**: BYM2の`scale`(スケーリング係数)を参照実装(Stan公式ケーススタディ)の値をそのまま流用すると、隣接グラフの構造が変わった場合に値が合わなくなり、`ρ`(空間分散の割合)の解釈がそのデータ固有の値に縛られる。
 - **対処**: Riebler et al. (2016)のオリジナル定義通り、グラフラプラシアンの一般化逆行列(Moore-Penrose逆行列)から`scaling_factor`を計算する(このデータでは`scaling_factor≈0.4853`)。アルゴリズムはStanケーススタディの`nb_data_funs.R`(`get_scaling_factor`)と同一のものをPythonに移植する。
@@ -172,6 +196,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 
 ### クロネッカー積GMRFの二次形式は、精度行列を明示せず行列演算で計算する
 
+![明示的なQ_full(mn×mn)構築とクロネッカー積の恒等式の2通りをPyMCモデルとして実際にサンプリングし、両式の数値差3.55e-15(完全一致)を確認した上で、mn=896(28×32)では明示的構築が3.73秒に対し恒等式利用は0.87秒と高速であること、Q_fullのメモリ量がO((mn)²)で増えることを示す](../assets/implementation-hacks/kronecker_quadratic_form_comparison.png)
+
+*空間時系列GMRFの交互作用項の二次形式vec(Ψ)^T(Q_space⊗Q_time)vec(Ψ)を、明示的な精度行列構築とクロネッカー積の恒等式sum(Psi*(Q_space@Psi@Q_time))の2通りでPyMCモデルとして実装し、数値的な一致と壁時計時間・メモリ量の差を実測した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: 空間時系列BYM(Type IV)の交互作用項`Ψ`の二次形式`vec(Ψ)^T(Q_space⊗Q_time)vec(Ψ)`を素朴に実装すると、郡数×週数の次元を持つ巨大な精度行列(このプロジェクトでは1320×1320)を明示的に構築する必要があるように見える。
 - **対処**: クロネッカー積の性質を利用し、`sum(Psi * (Q_space @ Psi @ Q_time))`という行列演算だけで同じ二次形式を計算する(`Psi`は郡×週の2次元配列のまま扱う)。
 - **なぜ効くか**: `vec(Ψ)^T(A⊗B)vec(Ψ) = sum(Ψ・(BΨA^T))`(対称行列の場合`A^T=A`)という恒等式により、明示的な`(mn)×(mn)`行列を経由せずとも、2つの小さい行列(`Q_space`: 郡数×郡数、`Q_time`: 週数×週数)への行列積だけで同じ値を計算できる。
@@ -180,6 +208,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 ---
 
 ### BOのように反復ごとにGPを再学習する場合は、NUTSではなく`pm.find_MAP`の点推定に切り替える
+
+![観測点数を増やしながらGPハイパーパラメータをNUTS(4chains)とfind_MAPの両方で実際にフィットし、壁時計時間を比較すると、観測点数80ではNUTSがfind_MAPの約10倍のコストになることを示す(左)。同じデータでのNUTS事後平均とfind_MAP点推定のlengthscaleはほぼ一致する(右)](../assets/implementation-hacks/bo_nuts_vs_map_refit_cost.png)
+
+*観測点数を5〜80まで変えながら、同一のGP回帰モデルをNUTSとfind_MAPの両方で実際にフィットし、壁時計時間とハイパーパラメータ推定値を比較した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。観測点が少ないうちは差が不安定だが、増えるにつれNUTSのコストがfind_MAPより速く増えていく。*
 
 - **症状**: ベイズ最適化(BO)は1反復ごとに新しい観測点を加えてGPを再学習する必要があり(4獲得関数×10反復=40回のGPフィットなど)、毎回NUTSでフルの事後サンプリングを行うと計算コストが反復回数分そのまま積み上がる。
 - **対処**: 初期デザインの数点でNUTSによる健全性検証(0 divergences、r_hat=1.00等)を1回だけ行い、以降の逐次ループでは`pm.find_MAP`によるハイパーパラメータの点推定に切り替える。
@@ -190,6 +222,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 
 ### 獲得関数の最大化は、次元が増えるとグリッド探索が組合せ爆発するため`scipy.optimize`マルチスタートに切り替える
 
+![固定予算(約4096点)のグリッド探索とscipy.optimizeマルチスタート(20リスタート)でEIを実際に最大化すると、D=1,2では両者ほぼ同等だがD=6ではグリッド探索0.100に対しマルチスタート0.485と大きく差がつくことを示す(左)。マルチスタートの壁時計時間は次元が増えても組合せ爆発しない(右)](../assets/implementation-hacks/acquisition_dimensionality_curse.png)
+
+*D=1,2,4,6次元でGP事後平均・分散の閉形式計算をもとにEIを構築し、固定予算のグリッド探索とscipy.optimizeマルチスタートの2通りで実際に最大化し、見つかった最良値と壁時計時間を比較した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: 低次元(1〜2次元)では密なグリッド上で獲得関数を評価してargmaxを取る方法が機能するが、次元が増えると同じ分解能を保つのに必要な格子点数が指数的に増える(6次元Hartmannで軸あたり60点の分解能を維持すると`60^6≈4.7×10^10`点となり列挙不可能)。総予算を固定してグリッドを粗くする(`4^6=4096`点)と、見つかる獲得関数の最良値がマルチスタート最適化に劣る(0.012 vs 0.016)。
 - **対処**: `pm.find_MAP`で得たハイパーパラメータの点推定を使い、GP事後平均・分散をNumPy+コレスキー分解の閉形式で計算する軽量な予測器を自前で実装し、`scipy.optimize`(L-BFGS-B、複数リスタート)で獲得関数を最大化する。
 - **なぜ効くか**: グリッド探索の破綻は次元の呪いのうち「候補点を全列挙するコスト」という計算上の問題であり、勾配ベースの局所最適化を複数の初期点から走らせる(マルチスタート)方式に置き換えることで、全列挙を経ずに獲得関数の最大値を探索できる。ただし解の質は上がる一方、実行時間はベクトル化された固定グリッド評価より長くなる(0.92秒 vs 0.01秒)というトレードオフがある。次元が増えるほど必要な評価回数(反復数)自体が増えるというサンプル効率の問題(次元の呪いのもう一つの側面)はこの対処では解決しない([techniques/model-evaluation.md](model-evaluation.md#次元の呪いはboが機能しなくなることではなく必要な評価回数の増加として現れる)参照)。
@@ -199,6 +235,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 
 ### `pm.MvNormal`+`LKJCholeskyCov`がBLAS未リンク環境で収束しない場合、逐次条件付け分解で代替する
 
+![真の相関rho=0.6の2変数データに対し、pm.MvNormal+LKJCholeskyCovで直接フィットした場合のrho事後平均0.595と、周辺分布×条件付き分布への分解(要素ごとpm.Normal)から逆算したrho事後平均0.604がほぼ一致する(平均差0.0093)ことを示す](../assets/implementation-hacks/mvnormal_vs_sequential_conditioning.png)
+
+*同一の相関データに対し、pm.MvNormal+LKJCholeskyCovによる直接フィットと、逐次条件付け分解(y1の周辺正規分布×y2|y1の条件付き正規分布)による間接推定の2通りをPyMCで実際に実行し、rhoの事後分布を比較した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
+
 - **症状**: 2変数の相関した欠測を多変量正規分布で同時にモデル化しようとして`pm.MvNormal`+`LKJCholeskyCov`(相関行列の標準的な事前分布)を使うと、PyTensorがBLASにリンクできない実行環境では実用的な時間で収束しない。
 - **対処**: 同時分布を「周辺分布 × 条件付き分布」に数式的に分解し(2変数`(y1,y2)`の同時正規分布は`y1`の周辺正規分布と`y2|y1`の条件付き正規分布の積に書き換えられる)、どちらも要素ごとの`pm.Normal`だけで実装する。
 - **なぜ効くか**: `pm.MvNormal`は内部でコレスキー分解などの行列演算をBLAS経由で行うため、BLASが正しくリンクされていない環境では極端に遅くなる。多変量正規分布の同時密度は逐次条件付け分解(chain rule)によって要素ごとの正規分布の積に数学的に同値な形で書き換えられるため、行列演算に依存しない実装に置き換えても分布としては変わらない。相関の強さは条件付き分布の回帰係数(`beta_cross`)から事後的に逆算できる。
@@ -207,6 +247,10 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 ---
 
 ### `pm.Potential`と`observed=`の使い分け: 他のRVに依存する制約式は`observed=`に渡せない
+
+![sum_to_zero制約の強さepsを1.0から0.01まで絞りながら実際にPyMCでフィットすると、事後分布でのsum(phi)の標準偏差がeps=1.0で0.877からeps=0.01で0.010まで、ほぼy=epsの参考線に沿って縮むことを示す(左)。epsを絞るとsum(phi)の事後分布が急速に0へ集中する(右)](../assets/implementation-hacks/potential_soft_sum_to_zero.png)
+
+*他のRVに依存するsum-to-zero制約をpm.Potentialで実装し、制約の強さepsを変えながら実際にPyMCでフィットして、sum(phi)の事後分布がepsに応じてどれだけ0へ集中するかを実測した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。*
 
 - **症状**: 空間時系列BYMのsum-to-zero制約(soft constraint)のような、他の確率変数に依存する式を`pm.Normal("constraint", mu=expr, sigma=..., observed=0)`のように`observed=`へ渡すと、`TypeError: Variables that depend on other nodes cannot be used for observed data`で失敗する。
 - **対処**: `pm.Potential`を使い、対数密度への加算項として手動実装する(例: `pm.Potential("sum_to_zero", -0.5 * (expr**2) / eps**2)`)。
