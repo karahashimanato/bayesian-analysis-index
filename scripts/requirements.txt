@@ -2,3 +2,6 @@ pymc==6.2.0
 arviz==1.2.0
 matplotlib==3.11.1
 numpy==2.4.6
+scipy==1.18.0
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.13.0+cpu
