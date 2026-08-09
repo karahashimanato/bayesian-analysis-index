@@ -2,6 +2,10 @@
 
 ガウス過程(GP)を代理モデルとしたベイズ最適化(BO)で、代理モデルの事後分布(平均・不確実性)から「次にどこを評価すべきか」を決める獲得関数そのものの用語辞典。GP自体の推論手法(`pm.gp.Marginal`等)は[tools/inference-methods.md](inference-methods.md)、代理モデルとしてのGP回帰そのものは[analysis-types.md](../analysis-types.md#ガウス過程回帰gaussian-process-regression)を参照。
 
+![獲得関数の比較: 局所最適(x≈2)近くの3点から開始し、3反復目時点の同一GP事後分布上でPIは局所最適付近(x≈2.3)に固執するが、EI・UCBは正しく大域最適側(x≈7、真の大域最適はx≈7)を次の提案点に選ぶ。反復ごとのregretはEI(10反復目=0.0004)・UCB(0.0001)が早期に収束する一方、PI(0.0563)は長く停滞し、GP-TS(0.2144)は事後サンプルの偶然性に依存し収束が遅い](../assets/acquisition-functions/acquisition_function_comparison.png)
+
+*局所最適と大域最適を持つ1次元関数に対し、4つの獲得関数で実際に逐次ベイズ最適化(10反復)を実行した結果(GP回帰は固定ハイパーパラメータのRBFカーネルによる閉形式の事後分布。生成スクリプト: [scripts/generate_acquisition_functions_plots.py](../scripts/generate_acquisition_functions_plots.py))。数値は実プロジェクトの再現ではなく、同じ質的パターン(PIの停滞、EI/UCBの速い収束、GP-TSの確率的な遅さ)を示す独自の合成デモ。*
+
 ---
 
 ### PI (Probability of Improvement)
