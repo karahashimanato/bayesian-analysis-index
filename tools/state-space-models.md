@@ -58,6 +58,10 @@
 
 ### Stochastic Volatility(SV)モデル
 
+![Stochastic Volatilityモデル: 対数ボラティリティh_tの事後平均(青)は真の変動パターン(オレンジ点線)の大まかな上下動を捉える(divergence=1、phi事後平均=0.882、真値0.95)](../assets/state-space-models/sv_volatility_recovery.png)
+
+*非中心化パラメータ化でPyMCで実際にサンプリングした結果(生成スクリプト: [scripts/generate_state_space_models_plots.py](../scripts/generate_state_space_models_plots.py))。*
+
 - **定義**: 観測値(金融資産のリターンなど)の分散(ボラティリティ)自体を、直接観測されない連続潜在状態として時系列的にモデル化する状態空間モデル。
 - **数式・仕組み**: 対数ボラティリティ`h_t`をAR(1)過程`h_t = φ・h_{t-1} + η_t`(`η_t ~ Normal(0, σ_η)`)としてモデル化し、観測値`r_t ~ Normal(0, exp(h_t/2))`(または[Student-t](observation-models.md#normal--student-t観測分布))とする。`φ`はボラティリティの持続性(persistence)を表す。
 - **使い分け**: リターンの分散が時間とともにクラスタリングする(ボラティリティの高い時期・低い時期がまとまって現れる)金融時系列に使う。1つのAR(1)過程では捉えきれない挙動(ACFのギャップなど)が残る場合、fast/slowの2成分に分ける拡張(2-factor SV)を検討する。

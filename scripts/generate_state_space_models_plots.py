@@ -319,8 +319,74 @@ def plot_markov_switching_transition_recovery():
           f"mu1={mu1_est:.3f}(true {mu1_true}))")
 
 
+def plot_sv_volatility_recovery():
+    """Stochastic Volatility(SV)モデルを非中心化パラメータ化で実際に
+    PyMCでサンプリングし、対数ボラティリティh_tの事後分布(平均+90%区間)が
+    真の変動パターンをどれだけ復元できるかを示す。"""
+
+    rng = np.random.default_rng(9)
+    T = 100
+    phi_true = 0.95
+    sigma_eta_true = 0.25
+    mu_h_true = -1.0
+
+    h_true = np.zeros(T)
+    h_true[0] = mu_h_true
+    for t in range(1, T):
+        h_true[t] = mu_h_true + phi_true * (h_true[t - 1] - mu_h_true) + rng.normal(0, sigma_eta_true)
+    returns = rng.normal(0, np.exp(h_true / 2))
+
+    with pm.Model():
+        mu_h = pm.Normal("mu_h", -1.0, 2.0)
+        phi_raw = pm.Beta("phi_raw", 20, 1.5)
+        phi = pm.Deterministic("phi", 2 * phi_raw - 1)
+        sigma_eta = pm.HalfNormal("sigma_eta", 0.5)
+
+        h_raw = pm.Normal("h_raw", 0, 1, shape=T)  # 非中心化
+        h_list = [mu_h + sigma_eta * h_raw[0] / pt.sqrt(1 - phi ** 2)]
+        for t in range(1, T):
+            h_list.append(mu_h + phi * (h_list[-1] - mu_h) + sigma_eta * h_raw[t])
+        h_est_expr = pt.stack(h_list)
+        pm.Deterministic("h", h_est_expr)
+
+        pm.Normal("returns", mu=0, sigma=pt.exp(h_est_expr / 2), observed=returns)
+
+        idata = pm.sample(600, tune=1500, chains=4, target_accept=0.95,
+                           random_seed=4, progressbar=False,
+                           compute_convergence_checks=False)
+
+    n_div = int(idata.sample_stats["diverging"].sum())
+    phi_est = float(idata.posterior["phi"].mean())
+    h_draws = idata.posterior["h"].values.reshape(-1, T)
+    h_mean = h_draws.mean(axis=0)
+    h_lo, h_hi = np.percentile(h_draws, [5, 95], axis=0)
+
+    fig, axes = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+
+    axes[0].plot(returns, color="black", lw=0.8)
+    axes[0].set_ylabel("リターン")
+    axes[0].set_title("観測データ(リターン): ボラティリティクラスタリング")
+
+    axes[1].fill_between(np.arange(T), h_lo, h_hi, color=COLOR_OK, alpha=0.25, label="事後90%区間")
+    axes[1].plot(h_mean, color=COLOR_OK, lw=1.8, label="事後平均")
+    axes[1].plot(h_true, color=COLOR_DIVERGENT, lw=1.3, ls="--", label="真の対数ボラティリティ")
+    axes[1].set_xlabel("t")
+    axes[1].set_ylabel("対数ボラティリティ h_t")
+    axes[1].set_title(f"対数ボラティリティの復元(divergence={n_div}, phi事後平均={phi_est:.3f}, 真値{phi_true})")
+    axes[1].legend(fontsize=8.5, loc="upper right")
+
+    fig.suptitle("Stochastic Volatilityモデル: 対数ボラティリティh_tの復元", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.savefig(OUT_DIR / "sv_volatility_recovery.png")
+    plt.close(fig)
+
+    print(f"sv_volatility_recovery.png saved "
+          f"(divergence={n_div}, phi推定={phi_est:.3f}(true {phi_true}))")
+
+
 if __name__ == "__main__":
     plot_gaussian_random_walk_amplitude()
     plot_process_obs_noise_nonidentifiability()
     plot_changepoint_tau_recovery()
     plot_markov_switching_transition_recovery()
+    plot_sv_volatility_recovery()
