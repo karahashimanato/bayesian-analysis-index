@@ -22,6 +22,7 @@ flowchart LR
     Start -->|"隣接構造や連続空間上の位置に<br/>依存する空間相関を推定したい"| SP["空間モデル<br/>Spatial Models"]
     Start -->|"データの一部が構造的に観測できず、<br/>欠測の仕組みに応じて補正・補完したい"| MD["欠測データ処理<br/>Missing Data / Imputation"]
     Start -->|"評価コストの高い関数を、少ない評価回数で<br/>逐次的に最適化したい"| BO["ベイズ最適化<br/>Bayesian Optimization"]
+    Start -->|"ニューラルネットの予測に、epistemic/aleatoric<br/>不確実性を定量化して持たせたい"| BDL["ベイズ深層学習<br/>Bayesian Deep Learning"]
 
     CI -.重複しうる.- SSM
     MAB -.重複しうる.- HB
@@ -30,7 +31,7 @@ flowchart LR
     BO -.重複しうる.- MAB
 ```
 
-- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression) / [空間モデル](#空間モデルspatial-models) / [欠測データ処理](#欠測データ処理missing-data--multiple-imputation) / [ベイズ最適化](#ベイズ最適化bayesian-optimization)
+- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression) / [空間モデル](#空間モデルspatial-models) / [欠測データ処理](#欠測データ処理missing-data--multiple-imputation) / [ベイズ最適化](#ベイズ最適化bayesian-optimization) / [ベイズ深層学習](#ベイズ深層学習bayesian-deep-learning)
 
 ---
 
@@ -139,3 +140,12 @@ flowchart LR
 - **代表的な問い**: 限られた評価回数の中で、次にどこを評価すれば最も効率よく最適解に近づけるか。探索(不確実性が高い領域を試す)と活用(良さそうな領域を深掘りする)のバランスをどう取るか。次元が増えるにつれて、必要な評価回数はどう増えるか(次元の呪い)。
 - **登場プロジェクト**: [bayesian-optimization](https://github.com/karahashimanato/bayesian-optimization/blob/main/README.md)(1次元/2次元Branin/6次元Hartmannベンチマークでの獲得関数比較、XGBoostハイパーパラメータ探索への実応用)
 - **関連ページ**: [tools/acquisition-functions.md](tools/acquisition-functions.md)(PI・EI・UCB・GP版Thompson Samplingの内訳はこちらに独立してまとめている) / [tools/evaluation-metrics.md](tools/evaluation-metrics.md#regret単純後悔simple-regret)(収束の評価指標regret) / [techniques/implementation-hacks.md](techniques/implementation-hacks.md#獲得関数の最大化は次元が増えるとグリッド探索が組合せ爆発するためscipyoptimizeマルチスタートに切り替える)(高次元での獲得関数最大化)
+
+---
+
+### ベイズ深層学習(Bayesian Deep Learning)
+
+- **定義**: ニューラルネットワークの予測に、モデルが「知らない」ことに由来するepistemic不確実性と、データ自体が持つ本質的なばらつきに由来するaleatoric不確実性を分離して持たせる分析。他カテゴリの多くがPyMC+MCMCで事後分布を厳密にサンプリングするのに対し、こちらは近似ベイズ推論(MC Dropout・Deep Ensembles・Laplace近似・変分推論など)をPyTorchで実装し、複数手法を横断比較する点が特徴。
+- **代表的な問い**: モデルの予測は「データが足りないから自信がない」のか、「データ自体にばらつきがあるから自信がない」のか。訓練データの範囲外(OOD)にどれだけ入り込むと、不確実性はどれだけ増加すべきか。ある不確実性定量化手法の性能は、タスクの次元・データ量・分布シフトの性質が変わっても頑健か。
+- **登場プロジェクト**: [bayesian-deep-learning](https://github.com/karahashimanato/bayesian-deep-learning/blob/main/README.md)(1次元合成回帰・California Housing・MNIST vs Fashion-MNIST・Mauna Loa CO2の4タスクでMC Dropout/Deep Ensembles/Laplace近似/Bayes by Backprop/Anchored Ensemblesを比較)
+- **関連ページ**: [tools/uncertainty-quantification-methods.md](tools/uncertainty-quantification-methods.md)(MC Dropout・Deep Ensembles・Laplace近似・Bayes by Backprop・Anchored Ensembles・in-between uncertaintyの内訳はこちらに独立してまとめている) / [techniques/model-evaluation.md](techniques/model-evaluation.md#手法比較の結論はタスクの次元複雑さに依存し単純に外挿できない)(手法比較の外挿限界) / [techniques/implementation-hacks.md](techniques/implementation-hacks.md#cpu環境のtorchビルドと周辺ライブラリの依存衝突は同じcpuビルド系列に揃えて解消する)(PyTorch依存衝突の回避)

@@ -1,6 +1,6 @@
 # 実装上のハック
 
-PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方法論とは別種の実装知識。
+PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど、統計的方法論とは別種の実装知識。
 
 ---
 
@@ -212,3 +212,12 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 - **対処**: `pm.Potential`を使い、対数密度への加算項として手動実装する(例: `pm.Potential("sum_to_zero", -0.5 * (expr**2) / eps**2)`)。
 - **なぜ効くか**: `observed=`は「与えられた固定値」を期待するAPIであり、他のRVから計算される式(値がサンプリングのたびに変わる)を渡すことは想定されていない。`pm.Potential`はモデルに任意の対数密度項を加える汎用的な仕組みであるため、この種の「他のRVに依存するsoft constraint」を表現できる。ただし`pm.Potential`で実装した項は対数尤度が自動保存されないため、LOO計算等が必要な場合は別途`pm.Deterministic`で保存する([本ページ冒頭のpm.Potentialに関する注意](#pmpotential-では対数尤度が自動保存されないので明示的に保存する)参照)。
 - **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2の技術的な発見)
+
+---
+
+### CPU環境のtorchビルドと周辺ライブラリの依存衝突は、同じCPUビルド系列に揃えて解消する
+
+- **症状**: CPU版PyTorch(2.13)環境で`torchvision`や`laplace-torch`を使おうとすると、`torchvision::nms`のoperator登録エラーのような依存衝突が発生し、ライブラリが読み込めない。
+- **対処**: `pip install torchvision --index-url https://download.pytorch.org/whl/cpu`のように、同じCPUビルド系列のインデックスから明示的にインストールし直してバージョンを揃える。`laplace-torch`のように衝突が解消できない/前提(単一の同分散ノイズ)が実装したいモデルと合わない場合は、該当箇所を自前実装する(例: 最終層が線形であることを利用したlast-layer Laplaceは閉形式のベイズ線形回帰として実装できる)。
+- **なぜ効くか**: PyTorchエコシステムのサードパーティ拡張(`torchvision`のC++拡張など)は、ビルドされたtorch本体のABI(CPU/CUDA、バージョン)と一致していないと動かないことが多い。同じビルド系列に揃えることで解消できる。ライブラリ側の実装が前提とする構造(同分散ノイズなど)がモデルの要求と合わない場合は、無理に既製ライブラリへ寄せるより、数式的に閉形式が求まる部分だけ自前実装する方が速いことがある。
+- **登場プロジェクト**: [bayesian-deep-learning](https://github.com/karahashimanato/bayesian-deep-learning/blob/main/README.md#part-b-1-laplace近似-vs-bayes-by-backprop)

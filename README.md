@@ -71,6 +71,7 @@
 | [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md) | PyMCによるベイズ空間統計。ICAR→BYM→BYM2(スコットランド口唇癌)、空間時系列BYM(オハイオ州COVID-19)、空間点過程LGCP(能登半島地震) | ✅ |
 | [bayesian-missing-data](https://github.com/karahashimanato/bayesian-missing-data/blob/main/README.md) | 欠測データ処理(Missing Data)のベイズ分析。World Bank開発指標パネルデータでMCAR/MAR/MNARを横断検証し、フルベイズ同時モデル・MICE・Selection Model・Pattern-Mixture Model・多変量同時欠測モデルを実装 | ✅ |
 | [bayesian-optimization](https://github.com/karahashimanato/bayesian-optimization/blob/main/README.md) | PyMCによるベイズ最適化。GP代理モデル+獲得関数(PI/EI/UCB/GP版Thompson Sampling)を1次元/2次元Branin/6次元Hartmannベンチマークで検証し、XGBoostハイパーパラメータ探索に実応用 | ✅ |
+| [bayesian-deep-learning](https://github.com/karahashimanato/bayesian-deep-learning/blob/main/README.md) | ベイズ深層学習における不確実性定量化の手法比較(PyTorch)。MC Dropout/Deep Ensembles/Laplace近似/Bayes by Backpropを1次元合成回帰・California Housing・MNIST vs Fashion-MNIST・時系列で比較 | ✅ |
 
 ## 運用ルール
 
