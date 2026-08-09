@@ -179,6 +179,15 @@ PyMC/ArviZ/JAX/pytensor固有のバグ回避・キャストなど、統計的方
 
 ---
 
+### `pm.MvNormal`+`LKJCholeskyCov`がBLAS未リンク環境で収束しない場合、逐次条件付け分解で代替する
+
+- **症状**: 2変数の相関した欠測を多変量正規分布で同時にモデル化しようとして`pm.MvNormal`+`LKJCholeskyCov`(相関行列の標準的な事前分布)を使うと、PyTensorがBLASにリンクできない実行環境では実用的な時間で収束しない。
+- **対処**: 同時分布を「周辺分布 × 条件付き分布」に数式的に分解し(2変数`(y1,y2)`の同時正規分布は`y1`の周辺正規分布と`y2|y1`の条件付き正規分布の積に書き換えられる)、どちらも要素ごとの`pm.Normal`だけで実装する。
+- **なぜ効くか**: `pm.MvNormal`は内部でコレスキー分解などの行列演算をBLAS経由で行うため、BLASが正しくリンクされていない環境では極端に遅くなる。多変量正規分布の同時密度は逐次条件付け分解(chain rule)によって要素ごとの正規分布の積に数学的に同値な形で書き換えられるため、行列演算に依存しない実装に置き換えても分布としては変わらない。相関の強さは条件付き分布の回帰係数(`beta_cross`)から事後的に逆算できる。
+- **登場プロジェクト**: [bayesian-missing-data](https://github.com/karahashimanato/bayesian-missing-data/blob/main/README.md#03-多変量同時分布モデル--半合成デザインによる検証)
+
+---
+
 ### `pm.Potential`と`observed=`の使い分け: 他のRVに依存する制約式は`observed=`に渡せない
 
 - **症状**: 空間時系列BYMのsum-to-zero制約(soft constraint)のような、他の確率変数に依存する式を`pm.Normal("constraint", mu=expr, sigma=..., observed=0)`のように`observed=`へ渡すと、`TypeError: Variables that depend on other nodes cannot be used for observed data`で失敗する。

@@ -4,7 +4,7 @@
 
 ## 種類を見分ける特徴質問チャート
 
-新しい分析を始めるとき、10種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。図中の点線はそうした代表的な重複を示す。
+新しい分析を始めるとき、11種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。図中の点線はそうした代表的な重複を示す。
 
 ```mermaid
 flowchart LR
@@ -20,13 +20,14 @@ flowchart LR
     Start -->|"群間比較や回帰関係を<br/>ベイズ的に評価したい"| RB["ベイズ回帰・A/Bテスト"]
     Start -->|"入力から出力への関数形を、<br/>パラメトリックな形を仮定せず推定したい"| GP["ガウス過程回帰<br/>Gaussian Process"]
     Start -->|"隣接構造や連続空間上の位置に<br/>依存する空間相関を推定したい"| SP["空間モデル<br/>Spatial Models"]
+    Start -->|"データの一部が構造的に観測できず、<br/>欠測の仕組みに応じて補正・補完したい"| MD["欠測データ処理<br/>Missing Data / Imputation"]
 
     CI -.重複しうる.- SSM
     MAB -.重複しうる.- HB
     SP -.重複しうる.- PP
 ```
 
-- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression) / [空間モデル](#空間モデルspatial-models)
+- [ベイズ的因果推論](#ベイズ的因果推論bayesian-causal-inference) / [点過程](#点過程point-process) / [生存時間分析](#生存時間分析survival-analysis) / [機構論的モデル](#機構論的モデルmechanistic--compartmental-models) / [状態空間モデル](#状態空間モデルstate-space-models) / [多腕バンディット・OPE](#多腕バンディットオフ方策評価multi-armed-bandit--ope) / [階層ベイズモデル](#階層ベイズモデルhierarchical-bayes--partial-pooling) / [ベイズ回帰・A/Bテスト](#ベイズ回帰abテストbayesian-regression--ab-testing) / [ガウス過程回帰](#ガウス過程回帰gaussian-process-regression) / [空間モデル](#空間モデルspatial-models) / [欠測データ処理](#欠測データ処理missing-data--multiple-imputation)
 
 ---
 
@@ -117,3 +118,12 @@ flowchart LR
 - **代表的な問い**: ある地区の値(罹患率など)は、隣接地区の情報も借りるとどう補正されるか。観測されたばらつきのうち、隣接地区間で共有される空間構造に由来する部分と、地区固有の非構造的なばらつきに由来する部分をどう分離するか。空間パターンは時間とともにどう変化するか。連続空間上のイベント(地震の震源など)はどこに集中しやすいか。
 - **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md)(ICAR→BYM→BYM2によるスコットランド口唇癌の疾病マッピング、Knorr-Held型空間時系列BYMによるオハイオ州COVID-19、LGCPによる能登半島地震の空間強度場推定)
 - **関連ページ**: [tools/spatial-models.md](tools/spatial-models.md)(ICAR・BYM・BYM2・空間時系列BYM・LGCPの内訳はこちらに独立してまとめている) / [tools/posterior-pathologies.md](tools/posterior-pathologies.md#ridge型非識別性)(BYMのθ/φ非識別性) / [techniques/reparameterization.md](techniques/reparameterization.md#bymのθφ分離の非識別性はbym2のσρ再パラメータ化で解消する)(BYM2への再パラメータ化)
+
+---
+
+### 欠測データ処理(Missing Data / Multiple Imputation)
+
+- **定義**: 観測されるはずのデータの一部が構造的に欠けている状況で、欠測が起こる仕組み(欠測メカニズム: MCAR/MAR/MNAR)をまず見極め、それに応じた統計的処理(完全ケース分析・多重代入・欠測値を潜在変数として扱うフルベイズ同時モデル・欠測メカニズム自体を明示的にモデル化するSelection Model/Pattern-Mixture Model)を選ぶ分析。真値が既知の半合成デザイン(完全なデータに人為的に欠測を注入する)で手法を検証したうえで、真の欠測を持つ実データに適用する二段構成を取ることが多い。
+- **代表的な問い**: この欠測は無視してよい(MCAR/MAR)か、それとも欠測の有無自体が値と結びついている(MNAR)か。欠測を無視した処理(完全ケース分析・平均補完)は、どの推定量(回帰係数か、周辺平均か)をどれだけ歪めるか。MNARのように原理的に識別できない設定で、結果は仮定にどれだけ依存するか。
+- **登場プロジェクト**: [bayesian-missing-data](https://github.com/karahashimanato/bayesian-missing-data/blob/main/README.md)(World Bank開発指標パネルデータ、MCAR/MAR/MNARを横断検証)
+- **関連ページ**: [tools/missing-data.md](tools/missing-data.md)(MCAR/MAR/MNAR・フルベイズ同時モデル・MICE・Selection Model・Pattern-Mixture Model・多変量同時欠測モデルの内訳はこちらに独立してまとめている) / [techniques/data-pitfalls.md](techniques/data-pitfalls.md#平均補完は最も単純な対処であり最も危険でもある)(平均補完の危険性) / [techniques/model-evaluation.md](techniques/model-evaluation.md#真値のない実データに適用する前に半合成デザインで手法の妥当性を確立する)(半合成デザインでの検証)

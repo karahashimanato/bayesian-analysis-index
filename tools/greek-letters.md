@@ -11,7 +11,9 @@
 | β | ベータ | Beta分布の第2パラメータ | [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#分析の流れnotebooks) / [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#mlb打率-階層ベイズbeta-binomial) |
 | β | ベータ | Hawkes過程の減衰速度(decay rate) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas) |
 | γ | ガンマ | SIR系モデルの回復率(recovery rate) | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sir-eyamペスト流行1666) |
+| γ(`γ_y`) | ガンマ・ワイ | Selection Modelの非無視可能性パラメータ(観測確率が値yそのものに依存する強さ) | [bayesian-missing-data](https://github.com/karahashimanato/bayesian-missing-data/blob/main/README.md#02-mnar--selection-model-vs-pattern-mixture-model) |
 | δ | デルタ | 季節変動モデルの振幅(seasonal amplitude) | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sirs-米国季節性インフルエンザ)(SIRS) |
+| δ | デルタ | Pattern-Mixture Modelの感度パラメータ(欠測群と観測群の条件付き分布のズレ) | [bayesian-missing-data](https://github.com/karahashimanato/bayesian-missing-data/blob/main/README.md#02-mnar--selection-model-vs-pattern-mixture-model) |
 | ε | イプシロン | 比が意味を持つ量の再パラメータ化における小さな揺らぎ(`R0 = 1 + ε` など) | [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md#sis-ナイジェリア-マラリア罹患率) |
 | ε | イプシロン | ε-greedyの強制ランダム選択確率(探索の下限保証) | [Multi-Armed-Bandit](https://github.com/karahashimanato/Multi-Armed-Bandit/blob/main/README.md#主な発見) |
 | η | イータ | SVモデルのprocess noise標準偏差(`σ_η`の形で登場) | [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility) |
