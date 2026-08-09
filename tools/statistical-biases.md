@@ -19,6 +19,10 @@ Jensen不等式、Informative Censoring、傾向スコアなど、`techniques/`�
 
 ### Informative Censoring(情報を持つ打ち切り)
 
+![持続時間と無関係な客観的フラグでの除外(5%)は生存曲線を歪めない(平均持続時間4.96のまま)が、短い持続時間ほど除外されやすい恣意的なヒューリスティックでの除外は生存曲線を上方に歪め、平均持続時間を5.67へ過大評価させる](../assets/data-pitfalls/informative_censoring_exclusion.png)
+
+*合成生存時間データで客観的フラグと恣意的ヒューリスティックによる除外を再現し、Kaplan-Meier曲線を比較した結果(生成スクリプト: [scripts/generate_data_pitfalls_plots.py](../scripts/generate_data_pitfalls_plots.py))。[techniques/data-pitfalls.md](../techniques/data-pitfalls.md#除外基準は客観的なフラグに限定し恣意的な推測での除外を避ける)の実例と共通。*
+
 - **定義**: 生存時間分析において、打ち切り(観測終了時点でイベント未発生)が起こるかどうかが、分析対象の真の性質(イベントの起こりやすさ)と統計的に無関係ではない(=打ち切り自体が情報を持つ)状態。多くの生存時間分析手法は打ち切りが「非情報的(non-informative)」であることを前提にしている。
 - **数式・仕組み**: 打ち切りメカニズムが分析対象のハザードと相関していると、観測データ(打ち切られずに残ったデータ)の分布が母集団の真の分布から系統的にズレる(選択バイアスの一種)。恣意的なヒューリスティックでデータを除外すると、除外基準自体が対象の性質と相関し、除外されなかったデータに対して事実上のinformative censoringを持ち込んでしまう。
 - **使い分け**: データの除外基準は「客観的でプロトコル・仕様由来のフラグ」に限定し、推測に基づく除外(「これはノイズだろう」)は避ける。除外基準が対象の値そのものと無関係に決まることを確認できれば、informative censoringのリスクを排除できる([techniques/data-pitfalls.md](../techniques/data-pitfalls.md#除外基準は客観的なフラグに限定し恣意的な推測での除外を避ける)参照)。
@@ -27,6 +31,10 @@ Jensen不等式、Informative Censoring、傾向スコアなど、`techniques/`�
 ---
 
 ### Propensity Score(傾向スコア)
+
+![表示位置ごとに傾向スコアが異なる状況で、傾向スコアを使わない素朴な差分(11.20pt)も、全体で一様な傾向スコアを使うIPS(11.20pt、素朴な差分と数式上完全に一致)も真の効果(5.0pt)から大きくズレるが、表示位置ごとの傾向スコアを使うIPS(4.47pt)は真の効果に近い値を回復する](../assets/data-pitfalls/propensity_score_conditional.png)
+
+*表示位置に依存する傾向スコアと交絡を持つ合成データで、素朴な差分・全体一様IPS・条件別IPSの3通りを比較した結果(生成スクリプト: [scripts/generate_data_pitfalls_plots.py](../scripts/generate_data_pitfalls_plots.py))。[techniques/data-pitfalls.md](../techniques/data-pitfalls.md#傾向スコアpropensity-scoreなど補正用の値は条件によって分布が異なる点に注意する)の実例と共通。*
 
 - **定義**: 各サンプルが、実際に採用された行動・処置(広告の表示位置、割り当てられた腕など)を、ログ収集時の方策のもとでどれくらいの確率で選ばれていたかを表す値。オフ方策評価(OPE)における重み付け補正の基礎になる。
 - **数式・仕組み**: `π_b(a|x)`(ログ収集方策がコンテキスト`x`で行動`a`を選ぶ確率)として定義される。[IPS/DR/SNIPS](evaluation-metrics.md#ips-inverse-propensity-scoring)などの推定量は、この値の逆数で観測報酬を重み付けすることで、ログ収集方策と評価したい方策のズレを補正する。
@@ -49,6 +57,10 @@ Jensen不等式、Informative Censoring、傾向スコアなど、`techniques/`�
 ---
 
 ### IPCW(逆確率重み付け、Inverse Probability of Censoring Weighting)
+
+![打ち切り生存確率G(t)を打ち切りイベントに対するKaplan-Meier推定量として実際に計算すると、追跡離脱による緩やかな低下に加え、行政打ち切り(全員がt_maxで打ち切られる)によりG(t_max)=0にちょうど到達する。重み1/G(t)はt_max直前で爆発しゼロ除算になるが、評価時刻をt_maxよりわずかにクリップすると有限(最大1.58)に保たれる](../assets/statistical-biases/ipcw_zero_division.png)
+
+*合成生存時間データ(追跡離脱による打ち切り+行政打ち切り)でG(t)を実際に推定した結果(生成スクリプト: [scripts/generate_statistical_biases_plots.py](../scripts/generate_statistical_biases_plots.py))。*
 
 - **定義**: 生存時間分析の評価指標(Brier Score、時間依存性AUCなど)を計算する際、打ち切りによって「本来観測されるはずだった結果」が欠測していることの影響を補正する重み付け手法。打ち切りが起きる確率の逆数で重み付けすることで、打ち切りがなかった場合の指標を近似的に復元する。
 - **数式・仕組み**: 打ち切り生存確率`G(t)`(=ある時点`t`まで打ち切られずに残っている確率)を別途推定し、その逆数`1/G(t)`を評価指標の計算に重みとして使う。最大生存時間に生存者が集中している(全員が打ち切られている)ケースでは`G(t_max) = 0`となり、逆数計算がゼロ除算でクラッシュする。

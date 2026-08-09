@@ -169,6 +169,80 @@ def plot_ecological_bias():
           f"aggregate-level estimate={b_agg.mean():+.3f})")
 
 
+def _kaplan_meier(t_obs, event):
+    order = np.argsort(t_obs)
+    t_sorted, e_sorted = t_obs[order], event[order]
+    event_times = np.unique(t_sorted[e_sorted == 1])
+    km_t, km_s = [0.0], [1.0]
+    s = 1.0
+    for ut in event_times:
+        n_risk = np.sum(t_obs >= ut)
+        d = np.sum((t_obs == ut) & (event == 1))
+        s *= (1 - d / n_risk)
+        km_t.append(float(ut))
+        km_s.append(s)
+    return np.array(km_t), np.array(km_s)
+
+
+def plot_ipcw_zero_division():
+    """打ち切り生存確率G(t)を打ち切りイベントに対するKaplan-Meier推定量として
+    実際に計算し、行政打ち切り(全員がt_maxで打ち切られる)によりG(t_max)=0と
+    なって1/G(t)がゼロ除算を起こすこと、およびクリップによる回避を示す。"""
+
+    rng = np.random.default_rng(31)
+    n = 500
+    true_rate = 0.15
+    dropout_rate = 0.04  # 追跡離脱による打ち切り(t_max以前にも発生)
+    t_event = rng.exponential(1 / true_rate, n)
+    t_dropout = rng.exponential(1 / dropout_rate, n)
+    t_max = 10.0
+    t_raw = np.minimum(t_event, t_dropout)
+    event = (t_raw <= t_max).astype(int) * (t_event <= t_dropout).astype(int)
+    t_obs = np.minimum(t_raw, t_max)
+
+    # G(t): 打ち切りイベント(event=0)を「イベント」とみなしたKM推定量
+    cens_indicator = 1 - event
+    km_t, km_G = _kaplan_meier(t_obs, cens_indicator)
+
+    eps = 0.05
+    t_eval = np.linspace(0.01, t_max, 300)
+    G_at_eval = np.array([km_G[km_t <= t][-1] for t in t_eval])
+    weight_raw = 1 / np.clip(G_at_eval, 1e-12, None)
+    t_eval_clipped = np.minimum(t_eval, t_max - eps)
+    G_clipped = np.array([km_G[km_t <= t][-1] for t in t_eval_clipped])
+    weight_clipped = 1 / np.clip(G_clipped, 1e-3, None)
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5))
+
+    ax = axes[0]
+    ax.step(km_t, km_G, where="post", color=COLOR_OK, lw=2)
+    ax.axvline(t_max, color="black", lw=1, ls=":", label=f"t_max={t_max}")
+    ax.set_xlabel("時間 t")
+    ax.set_ylabel("打ち切り生存確率 G(t)")
+    ax.set_title(f"G(t)は行政打ち切りによりt_maxでちょうど0になる\n(G(t_max)={km_G[-1]:.3f})")
+    ax.legend(fontsize=9)
+
+    ax = axes[1]
+    ax.plot(t_eval, weight_raw, color=COLOR_ALT, lw=2, label="1/G(t)(クリップなし)")
+    ax.plot(t_eval, weight_clipped, color=COLOR_OK, lw=2, ls="--",
+            label=f"1/G(t)(t_maxを{eps}だけクリップ)")
+    ax.axvline(t_max, color="black", lw=1, ls=":")
+    ax.set_xlabel("時間 t")
+    ax.set_ylabel("IPCW重み 1/G(t)")
+    ax.set_ylim(0, np.percentile(weight_raw[np.isfinite(weight_raw)], 99) * 1.5)
+    ax.set_title("t_max直前で重みが爆発しゼロ除算になる\n(評価時刻をわずかにクリップすると有限に保たれる)")
+    ax.legend(fontsize=9)
+
+    fig.suptitle("IPCW: 打ち切り生存確率G(t)の逆数はt_maxでゼロ除算を起こしうる", fontsize=13)
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
+    fig.savefig(OUT_DIR / "ipcw_zero_division.png")
+    plt.close(fig)
+    print(f"ipcw_zero_division.png saved (G(t_max)={km_G[-1]:.4f}, "
+          f"max weight_raw(finite)={weight_raw[np.isfinite(weight_raw)].max():.2f}, "
+          f"max weight_clipped={weight_clipped.max():.2f})")
+
+
 if __name__ == "__main__":
     plot_jensen_inequality_gap()
     plot_ecological_bias()
+    plot_ipcw_zero_division()
