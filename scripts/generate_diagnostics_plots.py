@@ -180,7 +180,150 @@ def plot_divergent_points_pattern():
     print("divergent_points_pattern.png saved")
 
 
+def plot_target_accept_tradeoff():
+    """ステップサイズ(target_acceptが実際に制御している量)を直接操作し、
+    max_treedepthを低く固定した状態でdivergenceとESS/r_hatの関係を見る。
+    target_acceptを直接スイープすると二重平均適応の初期値依存でノイズが
+    大きく単調な関係を再現しにくかったため、target_accept上昇時に実際に
+    起きる「ステップサイズの縮小」をadapt_step_size=Falseで直接再現する。"""
+
+    rng = np.random.default_rng(0)
+    n_groups = 20
+    group_true = rng.normal(0, 1.0, size=n_groups) * 0.3
+    n_obs_per_group = 3
+    obs = np.array([rng.normal(g, 1.0, size=n_obs_per_group) for g in group_true])
+    group_idx = np.repeat(np.arange(n_groups), n_obs_per_group)
+    obs_flat = obs.flatten()
+
+    def sample(step_scale, max_treedepth=4):
+        with pm.Model():
+            mu = pm.Normal("mu", 0, 5)
+            log_tau = pm.Normal("log_tau", 0, 2)
+            theta = pm.Normal("theta", mu, pm.math.exp(log_tau), shape=n_groups)
+            pm.Normal("obs", theta[group_idx], 1.0, observed=obs_flat)
+            step = pm.NUTS(step_scale=step_scale, adapt_step_size=False, max_treedepth=max_treedepth)
+            idata = pm.sample(1000, tune=500, chains=4, step=step, random_seed=1,
+                               progressbar=False, compute_convergence_checks=False)
+        n_div = int(idata.sample_stats["diverging"].values.sum())
+        rhat = float(az.rhat(idata, var_names=["log_tau"])["log_tau"].values)
+        ess = float(az.ess(idata, var_names=["log_tau"])["log_tau"].values)
+        return n_div, rhat, ess
+
+    step_scales = [0.5, 0.2, 0.08, 0.03]
+    n_divs, rhats, esss = [], [], []
+    for s in step_scales:
+        n_div, rhat, ess = sample(s)
+        n_divs.append(n_div)
+        rhats.append(rhat)
+        esss.append(ess)
+        print(f"step_scale={s}: divergences={n_div}, rhat(log_tau)={rhat:.3f}, ess(log_tau)={ess:.1f}")
+
+    x = np.arange(len(step_scales))
+    fig, ax1 = plt.subplots(figsize=(8, 5.5))
+    ax1.bar(x, n_divs, width=0.5, color=COLOR_DIVERGENT, alpha=0.8, label="divergence数(左軸)")
+    ax1.set_ylabel("divergence数", color=COLOR_DIVERGENT)
+    ax1.tick_params(axis="y", labelcolor=COLOR_DIVERGENT)
+    for xi, v in zip(x, n_divs):
+        ax1.text(xi, v + max(n_divs) * 0.02, str(v), ha="center", color=COLOR_DIVERGENT, fontsize=9)
+
+    ax2 = ax1.twinx()
+    ax2.plot(x, rhats, "o-", color=COLOR_OK, linewidth=2, markersize=7, label="r_hat(log τ, 右軸)")
+    ax2.set_ylabel("r_hat(log τ)", color=COLOR_OK)
+    ax2.tick_params(axis="y", labelcolor=COLOR_OK)
+    ax2.axhline(1.01, color=COLOR_OK, linestyle=":", linewidth=1)
+    ax2.set_ylim(0.9, max(rhats) * 1.45)
+    for xi, v, e in zip(x, rhats, esss):
+        ax2.text(xi, v + max(rhats) * 0.09, f"r_hat={v:.2f}\nESS={e:.0f}",
+                  ha="center", va="bottom", color=COLOR_OK, fontsize=8)
+
+    ax1.set_xticks(x)
+    ax1.set_xticklabels([f"step_scale={s}" for s in step_scales])
+    ax1.set_xlabel("ステップサイズ(小さいほどtarget_accept↑相当) →")
+    ax1.set_title("max_treedepthを固定したまま探索を慎重にすると\n"
+                   "divergenceは消えるがr_hat/ESSはむしろ悪化する(表面的改善)", pad=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    fig.savefig(OUT_DIR / "target_accept_tradeoff.png")
+    plt.close(fig)
+    print(f"target_accept_tradeoff.png saved (divergences {n_divs[0]}->{n_divs[-1]}, "
+          f"rhat {rhats[0]:.2f}->{rhats[-1]:.2f}, ess {esss[0]:.1f}->{esss[-1]:.1f})")
+
+
+def plot_gp_covariance_ill_conditioning():
+    """RBFカーネルの共分散行列は、length_scaleが観測点間隔に対して
+    大きくなるほど各行がランク1に近づき条件数が爆発的に悪化する
+    (length_scale→0では単位行列に近づき良条件、length_scale→∞では
+    全要素1の行列に近づき特異に近づく)。これがCholeskyの数値的不安定化と
+    NUTSの1ステップあたりの計算コスト急増(=tree_depthの伸び)の原因になる。
+    これをdivergenceとは独立に、実際にNUTSサンプリングして観測する。"""
+
+    x_grid = np.linspace(0, 10, 40)
+
+    def rbf_cond_number(length_scale, amplitude=1.0, jitter=1e-6):
+        d2 = (x_grid[:, None] - x_grid[None, :]) ** 2
+        cov = amplitude**2 * np.exp(-0.5 * d2 / length_scale**2)
+        cov += jitter * np.eye(len(x_grid))
+        eigvals = np.linalg.eigvalsh(cov)
+        return eigvals[-1] / max(eigvals[0], 1e-300)
+
+    length_scales = np.geomspace(0.15, 5.0, 25)
+    cond_numbers = np.array([rbf_cond_number(ls) for ls in length_scales])
+    grid_spacing = x_grid[1] - x_grid[0]
+
+    y_obs = np.sin(x_grid * 0.8) + np.random.default_rng(0).normal(0, 0.1, size=x_grid.size)
+
+    def sample_gp(length_scale):
+        with pm.Model() as model:
+            cov = pm.gp.cov.ExpQuad(1, ls=length_scale)
+            gp = pm.gp.Latent(cov_func=cov)
+            f = gp.prior("f", X=x_grid[:, None])
+            pm.Normal("obs", f, 0.1, observed=y_obs)
+            idata = pm.sample(200, tune=200, chains=2, max_treedepth=8, random_seed=0,
+                               progressbar=False, compute_convergence_checks=False)
+        n_div = int(idata.sample_stats["diverging"].values.sum())
+        mean_td = float(idata.sample_stats["tree_depth"].values.mean())
+        return n_div, mean_td
+
+    probe_ls = [0.25, 1.0, 4.0]
+    probe_results = [sample_gp(ls) for ls in probe_ls]
+    for ls, (n_div, mean_td) in zip(probe_ls, probe_results):
+        print(f"length_scale={ls}: divergences={n_div}, mean_tree_depth={mean_td:.2f}")
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    ax = axes[0]
+    ax.plot(length_scales, cond_numbers, color=COLOR_DIVERGENT, linewidth=2)
+    ax.axvline(grid_spacing, color="black", linestyle=":", linewidth=1,
+               label=f"観測点間隔={grid_spacing:.2f}")
+    ax.set_yscale("log")
+    ax.set_xlabel("length_scale")
+    ax.set_ylabel("共分散行列の条件数(対数軸)")
+    ax.set_title("length_scaleが観測点間隔より長くなるほど\n条件数が爆発的に悪化する")
+    ax.legend(fontsize=9)
+
+    ax = axes[1]
+    x2 = np.arange(len(probe_ls))
+    tds = [r[1] for r in probe_results]
+    divs = [r[0] for r in probe_results]
+    ax.bar(x2, tds, color=COLOR_OK, alpha=0.85)
+    ax.set_xticks(x2)
+    ax.set_xticklabels([f"length_scale={ls}" for ls in probe_ls])
+    ax.set_ylabel("平均tree_depth")
+    ax.set_title("divergence=0のままtree_depthだけが伸びる\n(=1ステップの計算コストが跳ね上がる)")
+    for xi, td, dv in zip(x2, tds, divs):
+        ax.text(xi, td + 0.05, f"divergence={dv}", ha="center", fontsize=9)
+    ax.set_ylim(0, max(tds) * 1.3)
+
+    fig.tight_layout()
+    fig.savefig(OUT_DIR / "gp_covariance_ill_conditioning.png")
+    plt.close(fig)
+    print(f"gp_covariance_ill_conditioning.png saved "
+          f"(cond {cond_numbers[0]:.1e}->{cond_numbers[-1]:.1e}, "
+          f"tree_depth {tds[0]:.2f}->{tds[-1]:.2f})")
+
+
 if __name__ == "__main__":
     plot_advi_vs_nuts()
     plot_chain_length_vs_multimodality()
     plot_divergent_points_pattern()
+    plot_target_accept_tradeoff()
+    plot_gp_covariance_ill_conditioning()

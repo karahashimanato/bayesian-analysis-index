@@ -42,6 +42,10 @@ flowchart TD
 
 ### 表面的改善と根本問題の解決を区別する
 
+![max_treedepthを固定したまま探索を慎重にする実験: divergence数は152→0まで単調に減るが、r_hat(log τ)は1.18→3.64、ESS(log τ)は17→4へとむしろ悪化する](../assets/diagnostics/target_accept_tradeoff.png)
+
+*PyMCの階層モデル(centered parameterization)でmax_treedepth=4に固定し、ステップサイズを直接操作して実際にサンプリングした結果(target_acceptを直接スイープすると二重平均適応の初期値依存でノイズが大きく単調な関係を再現しにくかったため、target_accept上昇時に実際に起きる「ステップサイズの縮小」を`adapt_step_size=False`で直接再現した。生成スクリプト: [scripts/generate_diagnostics_plots.py](../scripts/generate_diagnostics_plots.py))。*
+
 - **症状**: `target_accept` を上げてdivergencesが減ると「解決した」と判断しがちだが、ESSやr_hatが悪化しているケースがある。
 - **対処**: 1つの指標の改善だけで満足せず、他の診断指標もあわせて確認し、根本原因(モデル構造・パラメータ化)が解消されたかを判断する。
 - **なぜ効くか**: `target_accept` はサンプラーの挙動を変えるだけで、非識別性やモデル誤設定そのものは解消しない。指標間のトレードオフを見ないと誤診断する。`target_accept`そのものの仕組みは[tools/mcmc-diagnostics.md](../tools/mcmc-diagnostics.md#target_accept)を参照。
@@ -147,7 +151,11 @@ flowchart TD
 
 ### divergence=0のままサンプリングが停止する場合、GPの共分散行列の悪条件化を疑う
 
+![GP共分散行列の悪条件化: 左はlength_scaleが観測点間隔(0.26)より長くなるほど条件数が対数軸で爆発的に悪化する様子(2.7→3.1×10^7)、右は実際にNUTSサンプリングした結果でdivergence=0のままlength_scaleが長くなるほど平均tree_depthが4.73→7.00へ伸びる様子](../assets/diagnostics/gp_covariance_ill_conditioning.png)
+
+*RBFカーネル共分散行列の固有値を直接計算(左)、および`pm.gp.Latent`で実際にNUTSサンプリングしtree_depthを計測(右)した結果(生成スクリプト: [scripts/generate_diagnostics_plots.py](../scripts/generate_diagnostics_plots.py))。*
+
 - **症状**: 厳密なガウス過程(`pm.gp.Latent`)でNUTSサンプリングを試みたところ、divergenceは1つも出ないままサンプリングが実質的に停止した(1チェイン100分超・CPU使用率379%のまま完走せず)。
-- **対処**: 長さスケールの事後がグリッド間隔に対して短い領域に迷い込むと共分散行列が悪条件化し、NUTSの木の深さが爆発的に増えることを疑う。`pm.gp.Latent`から、共分散行列そのものを構成しない`pm.gp.HSGP`(Hilbert空間近似)に置き換える(モデル・事前分布はそのまま)。
+- **対処**: 長さスケールの事後がグリッド間隔に対して長い領域に迷い込むと共分散行列が悪条件化し、NUTSの木の深さが爆発的に増えることを疑う。`pm.gp.Latent`から、共分散行列そのものを構成しない`pm.gp.HSGP`(Hilbert空間近似)に置き換える(モデル・事前分布はそのまま)。
 - **なぜ効くか**: divergenceは「局所的な数値積分の破綻」を検出する指標であり、「1ステップの計算コスト自体が跳ね上がって停止する」という種類の病理は原理的に検出できない。r_hat/ESS/divergenceの3段階診断では捉えられない、気づきにくい病理の一例。GPの共分散行列悪条件化そのものの定義は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#gpの共分散行列悪条件化によるサンプリング停止divergenceに現れない病理)を参照。
 - **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-3の技術的な発見)(LGCP、`pm.gp.Latent`→`pm.gp.HSGP`で実行時間100分超→7秒に短縮)
