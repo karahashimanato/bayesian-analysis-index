@@ -247,8 +247,83 @@ def plot_multimodality():
     print(f"multimodality.png saved (r_hat={rhat:.2f}, divergence={div})")
 
 
+def plot_gp_covariance_ill_conditioning():
+    """RBFカーネルの共分散行列は、length_scaleが観測点間隔に対して
+    大きくなるほど各行がランク1に近づき条件数が爆発的に悪化する
+    (length_scale→0では単位行列に近づき良条件、length_scale→∞では
+    全要素1の行列に近づき特異に近づく)。これがCholeskyの数値的不安定化と
+    NUTSの1ステップあたりの計算コスト急増(=tree_depthの伸び)の原因になる。
+    これをdivergenceとは独立に、実際にNUTSサンプリングして観測する。"""
+
+    x_grid = np.linspace(0, 10, 40)
+
+    def rbf_cond_number(length_scale, amplitude=1.0, jitter=1e-6):
+        d2 = (x_grid[:, None] - x_grid[None, :]) ** 2
+        cov = amplitude**2 * np.exp(-0.5 * d2 / length_scale**2)
+        cov += jitter * np.eye(len(x_grid))
+        eigvals = np.linalg.eigvalsh(cov)
+        return eigvals[-1] / max(eigvals[0], 1e-300)
+
+    length_scales = np.geomspace(0.15, 5.0, 25)
+    cond_numbers = np.array([rbf_cond_number(ls) for ls in length_scales])
+    grid_spacing = x_grid[1] - x_grid[0]
+
+    y_obs = np.sin(x_grid * 0.8) + np.random.default_rng(0).normal(0, 0.1, size=x_grid.size)
+
+    def sample_gp(length_scale):
+        with pm.Model():
+            cov = pm.gp.cov.ExpQuad(1, ls=length_scale)
+            gp = pm.gp.Latent(cov_func=cov)
+            f = gp.prior("f", X=x_grid[:, None])
+            pm.Normal("obs", f, 0.1, observed=y_obs)
+            idata = pm.sample(200, tune=200, chains=2, max_treedepth=8, random_seed=0,
+                               progressbar=False, compute_convergence_checks=False)
+        n_div = int(idata.sample_stats["diverging"].values.sum())
+        mean_td = float(idata.sample_stats["tree_depth"].values.mean())
+        return n_div, mean_td
+
+    probe_ls = [0.25, 1.0, 4.0]
+    probe_results = [sample_gp(ls) for ls in probe_ls]
+    for ls, (n_div, mean_td) in zip(probe_ls, probe_results):
+        print(f"length_scale={ls}: divergences={n_div}, mean_tree_depth={mean_td:.2f}")
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
+
+    ax = axes[0]
+    ax.plot(length_scales, cond_numbers, color=COLOR_DIVERGENT, linewidth=2)
+    ax.axvline(grid_spacing, color="black", linestyle=":", linewidth=1,
+               label=f"観測点間隔={grid_spacing:.2f}")
+    ax.set_yscale("log")
+    ax.set_xlabel("length_scale")
+    ax.set_ylabel("共分散行列の条件数(対数軸)")
+    ax.set_title("length_scaleが観測点間隔より長くなるほど\n条件数が爆発的に悪化する")
+    ax.legend(fontsize=8, loc="lower right")
+
+    ax = axes[1]
+    x2 = np.arange(len(probe_ls))
+    tds = [r[1] for r in probe_results]
+    divs = [r[0] for r in probe_results]
+    ax.bar(x2, tds, color=COLOR_OK, alpha=0.85)
+    ax.set_xticks(x2)
+    ax.set_xticklabels([f"ls={ls}" for ls in probe_ls])
+    ax.set_ylabel("平均tree_depth")
+    ax.set_title("divergence=0のままtree_depthだけが伸びる\n(=1ステップの計算コストが跳ね上がる)")
+    for xi, td, dv in zip(x2, tds, divs):
+        ax.text(xi, td + 0.05, f"divergence={dv}", ha="center", fontsize=9)
+    ax.set_ylim(0, max(tds) * 1.3)
+
+    fig.suptitle("GPの共分散行列悪条件化によるサンプリング停止", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(OUT_DIR / "gp_covariance_ill_conditioning.png")
+    plt.close(fig)
+    print(f"gp_covariance_ill_conditioning.png saved "
+          f"(cond {cond_numbers[0]:.1e}->{cond_numbers[-1]:.1e}, "
+          f"tree_depth {tds[0]:.2f}->{tds[-1]:.2f})")
+
+
 if __name__ == "__main__":
     plot_funnel()
     plot_ridge()
     plot_label_switching()
     plot_multimodality()
+    plot_gp_covariance_ill_conditioning()

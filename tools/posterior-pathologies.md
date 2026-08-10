@@ -58,6 +58,10 @@ funnel・ridge型非識別性・ラベルスイッチング・マルチモダリ
 
 ### GPの共分散行列悪条件化によるサンプリング停止(divergenceに現れない病理)
 
+![GP共分散行列の悪条件化: 左はlength_scaleが観測点間隔(0.26)より長くなるほど条件数が対数軸で爆発的に悪化する様子(2.7→3.1×10^7)、右は実際にNUTSサンプリングした結果でdivergence=0のままlength_scaleが長くなるほど平均tree_depthが4.73→7.00へ伸びる様子](../assets/pathologies/gp_covariance_ill_conditioning.png)
+
+*RBFカーネル共分散行列の固有値を直接計算(左)、および`pm.gp.Latent`で実際にNUTSサンプリングしtree_depthを計測(右)した結果(生成スクリプト: [scripts/generate_pathology_plots.py](../scripts/generate_pathology_plots.py))。*
+
 - **定義**: 厳密なガウス過程(Cholesky分解による共分散行列の直接構成)で、長さスケールパラメータの事後がグリッド間隔に対して長い領域に迷い込むと、共分散行列が悪条件化(ill-conditioned)し、NUTSの木の深さが爆発的に増えてサンプリングが実質的に停止する病理。
 - **数式・仕組み**: カーネル行列`K`の長さスケールが観測点の間隔に対して長くなるほど、`K`は各行がほぼ等しいランク1に近い行列に近づき、固有値の一部がゼロに近づき数値的に特異に近づく(逆に長さスケールが間隔より十分短ければ`K`は単位行列に近づき、条件数は良好なままである)。Choleskyによる共分散行列の直接構成(`pm.gp.Latent`)はこの悪条件化の影響を直接受けるが、症状は「エネルギー保存則からの逸脱」という[divergence](mcmc-diagnostics.md#divergence発散)の形では現れず、単に1ステップの数値積分に要する時間が指数的に増えてサンプラーが停止したように見える。
 - **使い分け**: 長時間(数十分〜数時間規模)実行してもdivergenceが0のままサンプリングが完了しない場合、非識別性やfunnelのような「健全だが遅い」ケースと区別するため、共分散行列の悪条件化を疑う。`pm.gp.HSGP`(Hilbert空間近似)のように共分散行列そのものを構成しない近似手法に切り替えると、長さスケールの値によらず数値的に安定する([tools/inference-methods.md](inference-methods.md#pmgplatent--hsgp基底関数近似)参照)。
