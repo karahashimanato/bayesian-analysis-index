@@ -6,6 +6,10 @@ r_hat/ESS/divergenceなど、MCMCサンプリングの健全性を測る指標�
 
 ### r_hat(Gelman-Rubin統計量)
 
+![r_hat: 健全なchain群(B≈W、W=25.32,B=44.55,r_hat=1.00)ではchainが同じ値の周りを似た幅で探索するが、不健全なchain群(B>>W、W=0.04,B=9740.45,r_hat=3.51)ではchainごとに全く別の値に固定されたまま動かない](../assets/mcmc-diagnostics/rhat_within_between_variance.png)
+
+*PyMCで実際にサンプリングした結果(健全: NUTSで通常サンプリング、不健全: Metropolisをごく小さいscalingかつ短いtune/drawsで実行し意図的に混合を妨げた。生成スクリプト: [scripts/generate_mcmc_diagnostics_plots.py](../scripts/generate_mcmc_diagnostics_plots.py))。*
+
 - **定義**: 複数のMCMCチェーンが同じ目標分布に収束しているかを測る指標。1.00に近いほど良く、慣習的に1.01未満が目安とされる。
 - **数式・仕組み**: チェーン内分散とチェーン間分散の比から計算される(全体の分散に対して、個々のチェーンの分散がどれだけ小さいか)。複数のチェーンがそれぞれ異なる値に固定されたまま混ざっていない(マルチモダリティ)場合に大きく悪化する。
 - **使い分け**: 診断の入り口として最初に確認する指標。ただしmean-field ADVIのようにチェーン間比較という概念自体が存在しない手法では定義できない。r_hatが健全(≈1.00)でも局所的な探索の破綻(divergence)は見逃すため、[ESS](#ess-effective-sample-size)→[Divergence](#divergence発散)の順で追加確認する必要がある([techniques/diagnostics.md](../techniques/diagnostics.md#r_hat--ess--divergencesの3段階診断ワークフロー)参照)。
@@ -27,6 +31,10 @@ r_hat/ESS/divergenceなど、MCMCサンプリングの健全性を測る指標�
 ---
 
 ### Divergence(発散)
+
+![Divergence: leapfrog積分でステップサイズが調和振動子の安定限界(eps=2σ)を超えるとエネルギー誤差|H(t)-H(0)|が指数的に爆発する(eps=0.3/1.8は安定域で振動するだけだが、eps=2.05は40stepで8.3×10^15まで発散)。位相空間の軌道も、安定な場合は閉軌道を描くが発散する場合は最初の12stepで既に外側へ暴走する](../assets/mcmc-diagnostics/divergence_leapfrog_energy.png)
+
+*leapfrog積分器を実際にnumpyで実装し、単純な調和振動子ポテンシャル(U(x)=x²/2σ²)でステップサイズを変えて計算した結果(生成スクリプト: [scripts/generate_mcmc_diagnostics_plots.py](../scripts/generate_mcmc_diagnostics_plots.py))。*
 
 - **定義**: HMC/NUTSが事後分布の急峻に曲がった領域(高い曲率)を数値的に正しく積分できず、シミュレーションが破綻したサンプリングステップ。個々のdivergent pointは信頼できないサンプルとして扱われる。
 - **数式・仕組み**: HMCは連続的な軌道をシンプレクティック積分器で離散近似する。ステップサイズに対して局所的な曲率が急すぎる領域(funnel構造など)では、離散化誤差が蓄積してエネルギー保存則から大きく外れ、divergentと判定される。

@@ -23,7 +23,7 @@ import numpy as np
 import pymc as pm
 import pytensor.tensor as pt
 
-from plot_style import COLOR_ALT, COLOR_OK, apply_style
+from plot_style import COLOR_ALT, COLOR_CHAIN, COLOR_DIVERGENT, COLOR_OK, apply_style
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "assets" / "mcmc-diagnostics"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -134,6 +134,138 @@ def plot_target_accept_tradeoff():
           f"0.99: divergence={divs[1]}, ess={esss[1]:.0f})")
 
 
+def plot_rhat_within_between_variance():
+    """r_hatの定義そのもの(チェーン内分散Wとチェーン間分散Bの比)を、
+    健全なchain群と不健全なchain群それぞれで実際に計算して示す。"""
+
+    def sample_healthy():
+        with pm.Model():
+            pm.Normal("mu", 0, 5)
+            idata = pm.sample(1000, tune=1000, chains=4, random_seed=0,
+                               progressbar=False, compute_convergence_checks=False)
+        return idata
+
+    def sample_unhealthy():
+        with pm.Model():
+            pm.Normal("mu", 0, 5)
+            step = pm.Metropolis(scaling=0.02)
+            idata = pm.sample(200, tune=50, chains=4, step=step, random_seed=0,
+                               progressbar=False, compute_convergence_checks=False,
+                               initvals=[{"mu": v} for v in [-8, -3, 3, 8]])
+        return idata
+
+    idata_h = sample_healthy()
+    idata_u = sample_unhealthy()
+
+    results = {}
+    for name, idata in [("healthy", idata_h), ("unhealthy", idata_u)]:
+        mu = idata.posterior["mu"].values  # (chain, draw)
+        n_draws = mu.shape[1]
+        chain_means = mu.mean(axis=1)
+        W = mu.var(axis=1, ddof=1).mean()
+        B = n_draws * chain_means.var(ddof=1)
+        rhat_official = float(az.rhat(idata, var_names=["mu"])["mu"].values)
+        results[name] = dict(mu=mu, W=W, B=B, rhat=rhat_official)
+        print(f"{name}: W={W:.3f}, B={B:.3f}, r_hat(arviz, rank normalized)={rhat_official:.3f}")
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5), sharey=False)
+
+    for ax, name, title in [
+        (axes[0], "healthy", "健全: chain間で似た値を探索\n(B ≈ W)"),
+        (axes[1], "unhealthy", "不健全: chainごとに別々の値に固定\n(B >> W)"),
+    ]:
+        r = results[name]
+        for c in range(r["mu"].shape[0]):
+            ax.plot(r["mu"][c], color=COLOR_CHAIN[c % len(COLOR_CHAIN)], linewidth=0.9,
+                    alpha=0.85, label=f"chain {c}")
+        ax.set_xlabel("draw")
+        ax.set_title(f"{title}\nW={r['W']:.2f}, B={r['B']:.2f}, r_hat={r['rhat']:.2f}")
+        ax.legend(loc="upper right", fontsize=7.5, ncol=2, framealpha=0.9)
+
+    axes[0].set_ylabel("mu")
+    fig.suptitle("r_hat: チェーン内分散(W)とチェーン間分散(B)の比で収束を測る", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
+    fig.savefig(OUT_DIR / "rhat_within_between_variance.png")
+    plt.close(fig)
+    print(f"rhat_within_between_variance.png saved "
+          f"(healthy r_hat={results['healthy']['rhat']:.2f}, "
+          f"unhealthy r_hat={results['unhealthy']['rhat']:.2f})")
+
+
+def plot_divergence_leapfrog_energy():
+    """HMC/NUTSが使うleapfrog積分器で、ステップサイズがターゲット分布の
+    曲率に対して大きすぎるとエネルギー保存則から急激に外れる
+    (=divergence)ことを、単純な調和振動子ポテンシャルで直接示す。"""
+
+    sigma = 1.0  # U(x) = x^2 / (2*sigma^2) の調和振動子(安定限界は eps=2*sigma)
+
+    def U(x):
+        return 0.5 * x**2 / sigma**2
+
+    def grad_U(x):
+        return x / sigma**2
+
+    def leapfrog(x0, p0, eps, n_steps):
+        x, p = x0, p0
+        xs, ps = [x], [p]
+        for _ in range(n_steps):
+            p = p - 0.5 * eps * grad_U(x)
+            x = x + eps * p
+            p = p - 0.5 * eps * grad_U(x)
+            xs.append(x)
+            ps.append(p)
+        return np.array(xs), np.array(ps)
+
+    x0, p0 = 0.0, 1.0
+    H0 = U(x0) + 0.5 * p0**2
+    eps_values = [0.3, 1.8, 2.05]
+    labels = [f"eps={e}(安定域)" if e < 2.0 else f"eps={e}(不安定域、eps>2σ)" for e in eps_values]
+    colors = [COLOR_OK, COLOR_ALT, COLOR_DIVERGENT]
+    max_energy_error = 1000.0  # PyMC/Stanのdivergence判定デフォルト閾値
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+    ax = axes[0]
+    for eps, label, color in zip(eps_values, labels, colors):
+        xs, ps = leapfrog(x0, p0, eps, 40)
+        Hs = U(xs) + 0.5 * ps**2
+        energy_error = np.abs(Hs - H0)
+        ax.plot(energy_error + 1e-12, color=color, linewidth=1.8, label=label)
+    ax.axhline(max_energy_error, color="black", linestyle=":", linewidth=1,
+               label=f"divergence判定閾値(|ΔH|>{max_energy_error:.0f})")
+    ax.set_yscale("log")
+    ax.set_xlabel("leapfrogステップ数")
+    ax.set_ylabel("エネルギー誤差 |H(t) - H(0)|(対数軸)")
+    ax.set_title("ステップサイズが安定限界(eps=2σ)を超えると\nエネルギー誤差が指数的に爆発する")
+    ax.legend(loc="lower right", fontsize=7.5, framealpha=0.9)
+
+    # 安定/発散でスケールが桁違いになるため、位相空間の軌道は別軸で並べる
+    xs_stable, ps_stable = leapfrog(x0, p0, 0.3, 40)
+    n_div_steps = 12  # 発散側は序盤だけ見せないとスケールが暴走して軌道が潰れる
+    xs_div, ps_div = leapfrog(x0, p0, 2.05, n_div_steps)
+
+    ax = axes[1]
+    ax.plot(xs_stable, ps_stable, color=COLOR_OK, linewidth=1, marker="o", markersize=2.5)
+    ax.set_xlabel("x(位置)")
+    ax.set_ylabel("p(運動量)")
+    ax.set_title("eps=0.3(安定)\n位相空間で閉軌道を描く")
+
+    ax = axes[2]
+    ax.plot(xs_div, ps_div, color=COLOR_DIVERGENT, linewidth=1, marker="o", markersize=2.5)
+    ax.set_xlabel("x(位置)")
+    ax.set_title(f"eps=2.05(divergence)\n最初の{n_div_steps}stepで既に外側へ暴走")
+
+    fig.suptitle("Divergence: leapfrog積分のエネルギー保存則からの逸脱", fontsize=14)
+    fig.tight_layout(rect=(0, 0, 1, 0.92))
+    fig.savefig(OUT_DIR / "divergence_leapfrog_energy.png")
+    plt.close(fig)
+    print("divergence_leapfrog_energy.png saved "
+          f"(eps=0.3 max|dH|={np.max(np.abs(U(leapfrog(x0,p0,0.3,40)[0])+0.5*leapfrog(x0,p0,0.3,40)[1]**2-H0)):.4g}, "
+          f"eps=2.05 max|dH|={np.max(np.abs(U(leapfrog(x0,p0,2.05,40)[0])+0.5*leapfrog(x0,p0,2.05,40)[1]**2-H0)):.4g})")
+
+
 if __name__ == "__main__":
     plot_discrete_ess_gap()
     plot_target_accept_tradeoff()
+    plot_rhat_within_between_variance()
+    plot_divergence_leapfrog_energy()
