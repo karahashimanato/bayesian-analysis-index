@@ -184,7 +184,7 @@ flowchart LR
 
 ![Markov-Switching Model: forward algorithmで周辺化した尤度をPyMCで実際にサンプリングし、遷移確率(持続性p_stay0=0.959/p_stay1=0.855、真値0.95/0.90)とレジーム平均(mu0=-0.01/mu1=2.962、真値0/3.0)をdivergence=0で復元する](../assets/state-space-models/markov_switching_transition_recovery.png)
 
-*[tools/state-space-models.md](state-space-models.md#markov-switching-model)のMarkov-Switching Modelエントリと同じ画像・同じ実験(forward algorithmによる周辺化そのものがこのエントリの主題のため)。生成スクリプト: [scripts/generate_state_space_models_plots.py](../scripts/generate_state_space_models_plots.py)。*
+*[tools/state-space-models.md](state-space-models.md#markov-switching-modelレジームスイッチング状態空間)のMarkov-Switching Modelエントリと同じ画像・同じ実験(forward algorithmによる周辺化そのものがこのエントリの主題のため)。生成スクリプト: [scripts/generate_state_space_models_plots.py](../scripts/generate_state_space_models_plots.py)。*
 
 - **定義**: レジーム(離散潜在状態)を持つモデル(Markov-Switching Modelなど)で、離散状態をMCMCで直接サンプリングせず、解析的に周辺化(積分消去)して連続パラメータだけをサンプリング対象にする尤度計算手法。
 - **数式・仕組み**: 各時点の状態確率分布を`pytensor.scan`で逐次更新し(前の時点の状態確率×遷移確率×観測尤度)、最終的な対数周辺尤度を`pm.Potential`としてモデルに加える。離散潜在状態自体は事後的に別途復元できる。

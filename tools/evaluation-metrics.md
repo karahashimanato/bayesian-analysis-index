@@ -38,7 +38,7 @@
 
 - **定義**: 予測確率と実際の結果(0/1)のズレを二乗誤差で測る、確率較正(calibration)の指標。値が小さいほど良い。
 - **数式・仕組み**: `(予測確率 - 実際の結果)^2` の平均。二値分類・生存時間分析のいずれでも定義でき、生存時間分析では各時点ごとに(打ち切りを逆確率重み付け(IPCW)で補正して)計算する。
-- **使い分け**: 「確率の絶対値がどれだけ当たっているか」を見たいときに使う。順位付けの良さ([AUC-ROC](#auc-roc)/[C-index](#c-index-time-dependent-auc))とは数学的に独立な性質なので、一方が改善してももう一方の改善は保証されない。両方を確認する。
+- **使い分け**: 「確率の絶対値がどれだけ当たっているか」を見たいときに使う。順位付けの良さ([AUC-ROC](#auc-roc)/[C-index](#c-index--time-dependent-auc))とは数学的に独立な性質なので、一方が改善してももう一方の改善は保証されない。両方を確認する。
 - **登場プロジェクト**: [bayesian-A-B-testing](https://github.com/karahashimanato/bayesian-A-B-testing/blob/main/README.md#得られた方法論的な学び) / [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#2-予測性能評価とモデル比較-held-outデータによる検証)
 
 ---

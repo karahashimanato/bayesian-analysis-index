@@ -21,7 +21,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 - **症状**: 「順位付け(誰が先にイベントを迎えるか)」の指標(C-index)が改善したことをもって、「確率の絶対値」の較正(Brier Score)も改善したと誤解する。
 - **対処**: 両指標を別々に確認する。C-indexが `0.767→0.798` と向上しても、Brier Scoreは `0.104→0.101` とほぼ変化しないことがある。
-- **なぜ効くか**: 順位付けの正しさと確率較正の正しさは数学的に独立な性質であり、一方の改善がもう一方を保証しない。各指標そのものの定義は[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#c-index-time-dependent-auc)を参照。
+- **なぜ効くか**: 順位付けの正しさと確率較正の正しさは数学的に独立な性質であり、一方の改善がもう一方を保証しない。各指標そのものの定義は[tools/evaluation-metrics.md](../tools/evaluation-metrics.md#c-index--time-dependent-auc)を参照。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#2-予測性能評価とモデル比較-held-outデータによる検証)
 
 ---

@@ -64,5 +64,5 @@ Jensen不等式、Informative Censoring、傾向スコアなど、`techniques/`�
 
 - **定義**: 生存時間分析の評価指標(Brier Score、時間依存性AUCなど)を計算する際、打ち切りによって「本来観測されるはずだった結果」が欠測していることの影響を補正する重み付け手法。打ち切りが起きる確率の逆数で重み付けすることで、打ち切りがなかった場合の指標を近似的に復元する。
 - **数式・仕組み**: 打ち切り生存確率`G(t)`(=ある時点`t`まで打ち切られずに残っている確率)を別途推定し、その逆数`1/G(t)`を評価指標の計算に重みとして使う。最大生存時間に生存者が集中している(全員が打ち切られている)ケースでは`G(t_max) = 0`となり、逆数計算がゼロ除算でクラッシュする。
-- **使い分け**: [Brier Score](evaluation-metrics.md#brier-score)・[Time-Dependent AUC](evaluation-metrics.md#c-index-time-dependent-auc)など、打ち切りを含む生存時間データで確率較正・順位付けの精度を評価する指標を計算する際の標準的な補正手法として使う。ゼロ除算の実務的な回避策としては、評価対象の最大時間をごくわずかにクリップする方法がある([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#打ち切り時刻ちょうどのゼロ除算をわずかなクリップで回避する)参照)。
+- **使い分け**: [Brier Score](evaluation-metrics.md#brier-score)・[Time-Dependent AUC](evaluation-metrics.md#c-index--time-dependent-auc)など、打ち切りを含む生存時間データで確率較正・順位付けの精度を評価する指標を計算する際の標準的な補正手法として使う。ゼロ除算の実務的な回避策としては、評価対象の最大時間をごくわずかにクリップする方法がある([techniques/implementation-hacks.md](../techniques/implementation-hacks.md#打ち切り時刻ちょうどのゼロ除算をわずかなクリップで回避する)参照)。
 - **登場プロジェクト**: [bayesian-hazard-models](https://github.com/karahashimanato/bayesian-hazard-models/blob/main/README.md#診断実装における重要ハック)
