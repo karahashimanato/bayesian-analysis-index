@@ -58,7 +58,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 *外れ値を含む合成データにNormal尤度・StudentT尤度の2つの回帰を実際にPyMCでフィットし、`az.loo`のpointwise診断と`az.compare`を両方計算した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
-- **症状**: LOOのPareto k̂診断で、1,320観測中500件超が $\hat{k}>0.7$(重要度サンプリングの精度低下を示す閾値)の警告を出した。
+- **症状**: LOOのPareto k̂診断で、1,320観測中500件超が`k̂>0.7`(重要度サンプリングの精度低下を示す閾値)の警告を出した。
 - **対処**: `elpd_diff`の大きさが標準誤差`dse`の何倍かという要約レベルの判断(この事例では約4.4倍で明確)と、個々の観測点のLOO値がどれだけ信頼できるかという個票レベルの判断を分けて報告する。後者には留保が必要である旨を明示する。
 - **なぜ効くか**: Pareto k̂はPSIS近似が個々のデータ点でどれだけ信頼できるかを示す診断であり、`elpd_diff`という要約統計量が明確な差を示していても、それを構成する個々の観測点の精度が保証されるわけではない。両者は別の問いに答える指標であるため、一方の健全性からもう一方を推測しない。
 - **登場プロジェクト**: [bayesian-spatial-models](https://github.com/karahashimanato/bayesian-spatial-models/blob/main/README.md#part-2の技術的な発見)
@@ -162,7 +162,7 @@ LOO/AUC/Brier scoreなどの集計指標をどう使い、どう使いすぎな�
 
 *leverage効果と季節変動を併せ持つ合成リターンにleverage項付きSVモデル(pytensor.scanで再帰を実装)を実際にPyMCでフィットし、rhoの有意性とACF診断を別々に確認した結果(生成スクリプト: [scripts/generate_model_evaluation_plots.py](../scripts/generate_model_evaluation_plots.py))。*
 
-- **症状**: モデルに追加したパラメータ(leverage effectの $\rho$など)が統計的に明確な値(信用区間が0を含まない)を示したため、それによって当初解決したかった問題(ACFのギャップなど)も解決したと判断してしまう。
+- **症状**: モデルに追加したパラメータ(leverage effectの`ρ`など)が統計的に明確な値(信用区間が0を含まない)を示したため、それによって当初解決したかった問題(ACFのギャップなど)も解決したと判断してしまう。
 - **対処**: パラメータの有意性(事後分布が0を含まないか)と、当初の診断で見つかった具体的な問題(可視化・診断指標の特定のギャップ)が実際に解消したかを、別々に確認する。
 - **なぜ効くか**: あるパラメータの追加がモデルの当てはまりを何らかの意味で改善させることと、分析者が狙っていた特定の現象を説明できるようになることは、必ずしも同じではない。前者だけを見て満足すると、本当の問題を見過ごしたまま「改善した」と誤認する。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#日経225-stochastic-volatility)

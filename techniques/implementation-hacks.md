@@ -110,7 +110,7 @@ PyMC/ArviZ/JAX/pytensor(一部PyTorch)固有のバグ回避・キャストなど
 *Hawkes過程の対数尤度を、scanによる逐次再帰実装(O(n))とベクトル化実装(O(n²))の2通りでPyMCモデルとして実際にサンプリングし、壁時計時間を実測比較した結果(生成スクリプト: [scripts/generate_implementation_hacks_plots.py](../scripts/generate_implementation_hacks_plots.py))。イベント数が少ないうちはベクトル化が有利だが、O(n²)の計算量ゆえに件数が増えると優劣が逆転する点には注意が必要。*
 
 - **症状**: 点過程モデル(Hawkes過程など)で、各イベントが過去の全イベントから受ける影響を計算する必要があり、素朴に実装すると逐次ループ(`pytensor.scan`)が必要に見える。
-- **対処**: `dt = t[:, None] - t[None, :]`のように全イベントペアの時間差を表す $T\times T$ 行列を作り、`dt > 0`のマスクで「自分より前に起きたイベントだけ」を抽出、`pt.switch`で条件付き計算を行うことで、`scan`を使わずベクトル演算のみでモデルを構築する。
+- **対処**: `dt = t[:, None] - t[None, :]`のように全イベントペアの時間差を表す`T×T`行列を作り、`dt > 0`のマスクで「自分より前に起きたイベントだけ」を抽出、`pt.switch`で条件付き計算を行うことで、`scan`を使わずベクトル演算のみでモデルを構築する。
 - **なぜ効くか**: `pytensor.scan`は逐次処理のオーバーヘッドがあり、微分やコンパイルの面でもベクトル化された演算より扱いにくい場合がある。ペアワイズな時間差計算は行列演算に落とし込めるため、スケールしやすいベクトル化実装が可能になる。
 - **登場プロジェクト**: [bayesian-modeling-lab](https://github.com/karahashimanato/bayesian-modeling-lab/blob/main/README.md#能登半島地震-自己励起点過程hawkesetas)
 
