@@ -6,6 +6,10 @@
 
 ### 比が意味を持つ量は「定数+ε」で再パラメータ化する
 
+![beta~HalfNormal(2)・gamma~HalfNormal(1)の独立パラメータ化ではR0=beta/gammaのprior predictiveが最大198,933まで暴走するが、R0=1+epsilon(epsilon~Gamma(2,0.3))と再パラメータ化すると最大5.22に収まることを示す](../assets/reparameterization/ratio_constant_epsilon_reparam.png)
+
+*beta・gammaを独立に事前分布からサンプルした場合と、比R0自体を「定数+ε」で再パラメータ化した場合とで、prior predictiveのR0分布を実際に計算して比較した結果(生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
+
 - **症状**: R0 = β/γ のように2つのパラメータの比が本質的に意味を持つ量は、βとγを独立に事前分布で動かすとprior predictiveが暴走する(SISでは現実の数百万倍に達した)。
 - **対処**: R0 = 1 + ε (SIS)、R0 = 0.8 + ε (SIRS) のように、比そのものを中心値+小さな揺らぎ ε ~ Gamma/Beta で再パラメータ化する。
 - **なぜ効くか**: 個々のパラメータ(β, γ)の分散をいくら調整しても、比の分布は間接的にしか制御できない。比自体を直接パラメータ化すれば、prior predictiveの範囲を直接コントロールできる。
@@ -15,6 +19,10 @@
 
 ### 値の矛盾を構造的に排除するため、独立パラメータではなく他の量から導出する
 
+![I0を独立にサンプルすると、暗に予測される初期新規感染数(gamma×I0)が実際の観測値12との相対誤差が50%を超える組み合わせが69.5%を占めるが、I0=observed/gammaとして導出すれば全サンプルが観測値と常に一致することを示す](../assets/reparameterization/derived_vs_independent_i0.png)
+
+*I0を独立にサンプルした場合と、既知の観測値と他パラメータから導出した場合とで、モデルが暗に予測する初期新規感染数の分布を実際に計算して比較した結果(生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
+
 - **症状**: I0(初期感染者数)を独立にサンプルすると、他のパラメータ(gamma)と数値的に矛盾する組み合わせが起こりうる。
 - **対処**: `I0 = incidence_obs[0] / gamma` のように、独立サンプルせず既知の観測値と他パラメータから導出する。
 - **なぜ効くか**: 導出関係を明示することで、そもそも矛盾した組み合わせが事前分布のサポートに含まれなくなる。
@@ -23,6 +31,10 @@
 ---
 
 ### モデルを複雑にすると新しい非識別性を生みやすい
+
+![y=beta0+(beta1+beta2)*xという冗長なパラメータ化で、beta1の事前分布のスケールをσ=0.1からσ=3.0に変えるとbeta1単体の事後平均は0.01から1.11まで大きく動くが、識別可能な合成量beta1+beta2はどちらの設定でも1.225・1.226と真の傾き1.2の周りで安定することを示す](../assets/reparameterization/complexity_creates_nonidentifiability.png)
+
+*単純な線形回帰を、同じ役割を持つ係数を2つに分けた冗長な形へ拡張し、事前分布のスケールを変える感度分析で個別パラメータと合成量の識別性の違いを実際に計算して示した結果(生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
 
 - **症状**: 階層モデルやスプラインなど柔軟なモデルに拡張すると、切片(水準)を複数のパラメータが奪い合う構造になり、事後分布が不安定になる。
 - **対処**: 各パラメータの役割分担を明示し、事前分布の感度分析(スケールを変えて事後がどれだけ動くか)で「データが支持する値か、事前分布に抑え込まれているだけか」を切り分ける。
@@ -85,6 +97,10 @@
 
 ### 理論的に必須な制約と、単なる願望としての制約を区別する
 
+![真の倍率M=1.15(有限期間では問題なく観測できる緩やかな増加系列)に対し、「安定していてほしい」という願望からM<1に制約したモデルの事後平均は境界の1.000に張り付くが、制約なし(M~Gamma)のモデルは真値に近い1.146を正しく推定することを示す](../assets/reparameterization/necessary_vs_wished_constraint.png)
+
+*有限期間では問題なく観測できる真にM>1の系列に対し、M<1という願望的制約を課したモデルと制約なしのモデルを実際にPyMCでフィットし、Mの事後分布を比較した結果(生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
+
 - **症状**: パラメータに「こうあってほしい」という範囲(例: Hawkes過程の分岐比 $M<1$、安定性への期待)を、深く検討せず事前分布の制約として組み込んでしまう。
 - **対処**: その制約が数学的に必須な条件(例: AR(1)の $\phi\in(-1,1)$は定常性のための必要条件)なのか、単に分析者が期待する結果(例: 有限観測期間では $M>1$でも矛盾なくデータを説明できるため、 $M<1$は必須ではない)なのかを切り分ける。必須でなければ、 $(0,\infty)$のような開いた事前分布を採用し、制約の要否自体をデータに語らせる。
 - **なぜ効くか**: 願望に基づく制約を課すと、その制約が真に成り立つかどうかという分析上重要な問いに、事前分布があらかじめ答えを出してしまうことになる。必須な制約とそうでない制約を区別することで、本当に検証すべき問いを事前分布で潰さずに済む。
@@ -107,6 +123,10 @@
 
 ### BYMのθ/φ分離の非識別性は、BYM2の(σ,ρ)再パラメータ化で解消する
 
+![BYMのsigma_thetaとsigma_phiは正の相関0.26を持ち「どちらがばらつきを説明するか」を奪い合う結果、sigma_thetaのESSが107まで著しく低下するが、BYM2の(sigma,rho)再パラメータ化ではsigma=1225・rho=2106とどちらも大幅に改善することを示す](../assets/reparameterization/bym_theta_phi_ess_bym2_fix.png)
+
+*6x6格子のBYMモデル(非構造項theta・空間構造項phiを別々の分散でモデル化)と、BYM2((sigma,rho)への再パラメータ化)を実際にPyMCでフィットし、分散パラメータの事後相関とESSを比較した結果(生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
+
 - **症状**: BYMモデルで地区固有の非構造項`θ`と空間構造項`φ`を別々の分散(`σ_θ`,`σ_φ`)でモデル化すると、両者の事後ペアプロットに緩やかな負の相関(-0.31)が現れ、θ単体・φ単体のESS(中央値: θ=1486、φ=7011)が合成量`θ+φ`のESS(中央値8113)より明確に低くなる。`σ_θ`のr_hatも1.14まで悪化する。
 - **対処**: 同じ量を`σ・(√(1-ρ)・θ*+√(ρ/scale)・φ*)`に再パラメータ化する(BYM2、Riebler et al. 2016)。`σ`は全体スケール、`ρ`は空間分散の割合を表し、`scale`はグラフラプラシアンの一般化逆行列から自前で計算する。
 - **なぜ効くか**: 元のパラメータ化では`σ_θ`と`σ_φ`がどちらも「観測されたばらつきの一部」を説明する冗長な自由度を持つが、BYM2は「合計の大きさ(σ)」と「その内訳(ρ)」という直交した2つの問いに分解する。この再パラメータ化により`σ`,`ρ`の事後相関は0.08まで縮小し、全パラメータのr_hatが1.00に改善する。BYMの非識別性そのものの定義は[tools/spatial-models.md](../tools/spatial-models.md#bymbesag-york-mollié)、ridge型非識別性との対応は[tools/posterior-pathologies.md](../tools/posterior-pathologies.md#ridge型非識別性)を参照。なお`az.compare`によるLOO-CVでは3モデル(ICAR/BYM/BYM2)の予測性能に有意差はなく、BYM2の価値は予測精度ではなく分散成分の分離推定の安定性にある([techniques/model-evaluation.md](model-evaluation.md#looで差がつかなくても分散成分を安定して分離推定できることに価値がある場合がある)参照)。
@@ -115,6 +135,10 @@
 ---
 
 ### RW1の絶対水準の不定性は、β0との交絡を生むため中心化で解消する
+
+![RW1を中心化せずに線形予測子へ組み込むと、beta0とRW1の平均水準の事後相関が-0.999とほぼ完全に交絡しbeta0のESSは273だが、線形予測子へ組み込む前にRW1を中心化(平均を引く)すると相関は0.016まで消え、ESSは1991へ大幅に改善することを示す](../assets/reparameterization/rw1_centering_beta0_confound.png)
+
+*T=40のGaussianRandomWalk(RW1)+切片beta0のモデルを、RW1を中心化せずに組み込んだ場合と事前に中心化した場合の2通りで実際にPyMCでフィットし、beta0とRW1の水準の事後相関・ESSを比較した結果(生成スクリプト: [scripts/generate_reparameterization_plots.py](../scripts/generate_reparameterization_plots.py))。*
 
 - **症状**: 空間時系列BYMの時間項に`pm.GaussianRandomWalk`(RW1)を使うと、RW1自体の絶対水準(全体を定数だけ底上げしても尤度が変わらない)が切片`β0`と交絡し、両者の分離が事後分布上で不安定になりうる。
 - **対処**: `time_raw - mean(time_raw)`のように、RW1の値を使用前に中心化(平均を引く)してから線形予測子に組み込む。
