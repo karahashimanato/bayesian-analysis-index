@@ -32,6 +32,10 @@
 
 ### Brier Score
 
+![打ち切り率42.1%のデータでのBrier Score: 打ち切りを無条件に「生存」扱いする素朴な計算は評価時点が進むほどオラクル(打ち切りなしの真値)から乖離するが、IPCW(逆確率打ち切り重み付け)補正版は全ての評価時点でオラクルにほぼ一致する(平均絶対誤差 素朴=0.0418 vs IPCW=0.0018)](../assets/evaluation-metrics/brier_ipcw_censoring_correction.png)
+
+*既知のハザード関数から生成した打ち切りなしのオラクルデータと、そこに一様乱数で打ち切りを加えたデータの両方でBrier Scoreを計算し比較した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
+
 - **定義**: 予測確率と実際の結果(0/1)のズレを二乗誤差で測る、確率較正(calibration)の指標。値が小さいほど良い。
 - **数式・仕組み**: `(予測確率 - 実際の結果)^2` の平均。二値分類・生存時間分析のいずれでも定義でき、生存時間分析では各時点ごとに(打ち切りを逆確率重み付け(IPCW)で補正して)計算する。
 - **使い分け**: 「確率の絶対値がどれだけ当たっているか」を見たいときに使う。順位付けの良さ([AUC-ROC](#auc-roc)/[C-index](#c-index-time-dependent-auc))とは数学的に独立な性質なので、一方が改善してももう一方の改善は保証されない。両方を確認する。
@@ -67,6 +71,10 @@
 
 ### DM (Direct Method)
 
+![DMのバイアスは報酬モデルの誤設定度合いに単調に比例する: 非単調な真の報酬(alpha=1)を線形回帰モデルで近似する誤設定度合いalphaを0(正しい設定)から1(完全に誤設定)まで変えると、200回のログ再サンプリングでのDMバイアスは0.0006から0.1131まで単調に拡大する](../assets/evaluation-metrics/dm_misspecification_bias.png)
+
+*4本の腕を持つバンディットで、真の報酬(非単調)と線形回帰で表現可能な報酬の間を線形補間したデータを使い、報酬モデルを線形回帰(OLS)でフィットしてDM推定値のバイアスを比較した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
+
 - **定義**: ログデータから報酬モデル(コンテキストと行動から報酬を予測する回帰モデル)を直接学習し、新方策の行動選択確率で期待値を取ることで新方策の性能を推定する手法。
 - **数式・仕組み**: `V_DM = (1/n) Σ_i Σ_a π_e(a|x_i) * r̂(x_i, a)`(`r̂`は学習済みの報酬モデル)。
 - **使い分け**: 傾向スコアが信頼できない/欠損している場合に使う。報酬モデルの当てはまりが悪いとバイアスがそのまま乗る弱点がある([DR](#dr-doubly-robust)で軽減)。
@@ -75,6 +83,10 @@
 ---
 
 ### DR (Doubly Robust)
+
+![200回のログ再サンプリングでのバイアス: DRはどちらか一方が正しければ不偏に近い。傾向スコア・報酬モデルの正誤2x2の組み合わせで、IPSは傾向スコアが誤ると(-0.0766, -0.0741)、DMは報酬モデルが誤ると(-0.0842, -0.0843)大きくバイアスを持つが、DRはどちらか一方さえ正しければ0.0002〜0.0006程度の小さなバイアスに留まり、両方誤ったときのみ-0.0074まで悪化する](../assets/evaluation-metrics/dr_double_robustness_grid.png)
+
+*4本の腕を持つバンディットで、傾向スコア(既知/分析者が誤って一様だと思い込む)と報酬モデル(腕ごとの標本平均/線形回帰による誤設定)の2x2の組み合わせについて、IPS・DM・DRのバイアスを比較した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
 
 - **定義**: [IPS](#ips-inverse-propensity-scoring)と[DM](#dm-direct-method)を組み合わせ、傾向スコアと報酬モデルのどちらか一方さえ正しく特定できていれば不偏推定量になるという「二重にロバスト」な性質を持つOPE推定量。
 - **数式・仕組み**: `V_DR = V_DM + (1/n) Σ [π_e(a_i|x_i)/π_b(a_i|x_i)] * (r_i - r̂(x_i,a_i))`。DMの推定値に、実際の報酬とDMの予測との残差をIPS的に補正する項を足す形。
@@ -85,6 +97,10 @@
 
 ### SNIPS (Self-Normalized IPS)
 
+![極端な傾向スコアの下でのIPS vs SNIPS: 分散の違い。ほぼ選ばれない腕(pi_b=0.02)を含む2腕バンディットで、300回のログ再サンプリングでの標準偏差はIPS=0.1167に対しSNIPS=0.0787と大きく抑えられる。IPSの推定値はその腕が1run内に何回出現したかとの相関が0.745と強いが、SNIPSは0.275と相対的に安定している](../assets/evaluation-metrics/snips_variance_reduction.png)
+
+*傾向スコアが0.98/0.02と極端に偏った2腕バンディットで、IPS・SNIPSそれぞれの推定値の分布と、稀な腕の出現回数への依存度を比較した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
+
 - **定義**: [IPS](#ips-inverse-propensity-scoring)の重み(傾向スコア比)の合計で正規化することで、IPSの分散を抑えた推定量。
 - **数式・仕組み**: `V_SNIPS = Σ[w_i * r_i] / Σ w_i`(`w_i = π_e(a_i|x_i)/π_b(a_i|x_i)`)。
 - **使い分け**: IPSの重みが不安定(分散が大きい)ときに、わずかなバイアスと引き換えに分散を大きく減らしたい場合に使う。
@@ -94,6 +110,10 @@
 
 ### SNDR (Self-Normalized DR)
 
+![SNIPS=SNDR=単純平均の一致は「傾向スコアが正しく分かっている」ことが前提。ログ収集方策と評価方策がどちらも一様の場合(左)は単純平均・SNIPS・SNDR(正しい報酬モデル/誤設定な報酬モデル)がほぼ一致するが、分析者が傾向スコアを誤って一様だと思い込んでいる場合(右)はSNIPS・単純平均はともに0.1642まで崩れる一方、SNDRは報酬モデルの正誤によらず0.2265と真値(0.2250)に近い値を保つ](../assets/evaluation-metrics/sndr_identity_reward_model_invariance.png)
+
+*4本の腕を持つバンディットで、ログ収集方策が一様な場合(特殊構造)と、分析者が傾向スコアを誤設定した場合の両方で、単純平均・SNIPS・SNDRを比較した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
+
 - **定義**: [DR](#dr-doubly-robust)のIPS的補正項部分を[SNIPS](#snips-self-normalized-ips)と同様に自己正規化した、DRの低分散版。
 - **数式・仕組み**: DRの補正項`Σ w_i(r_i - r̂)`を`Σ w_i`で正規化してからDMの推定値に加える。
 - **使い分け**: DRの分散をさらに抑えたい場合の実務的な標準選択。ランダム方策の一様な傾向スコアという特殊構造下では`SNIPS = SNDR = 単純平均DM`という恒等式が理論的に成り立ち、実データでの一致確認は推定量の実装が正しいかを検証する回帰テストとして使える([techniques/model-evaluation.md](../techniques/model-evaluation.md#特殊構造の下で推定量どうしが一致することを確認し実装の妥当性検証に使う)参照)。
@@ -102,6 +122,10 @@
 ---
 
 ### Regret(単純後悔、Simple Regret)
+
+![獲得関数の探索失敗と計算上の解像度不足の混同に注意: GP-UCBの獲得関数最大化に細かいグリッド(2000点)を使うと15回平均のsimple regretは反復25回で0.0347まで縮むが、粗いグリッド(6点)では真の最適点から0.642離れた点までしか提案できず、regretは0.1632で頭打ちになる](../assets/evaluation-metrics/regret_grid_resolution_limit.png)
+
+*1次元の多峰関数に対しGP-UCBによるベイズ最適化を実行し、獲得関数自体の最大化に使う候補グリッドの解像度を変えてsimple regretの収束を比較した結果(生成スクリプト: [scripts/generate_evaluation_metrics_plots.py](../scripts/generate_evaluation_metrics_plots.py))。*
 
 - **定義**: ベイズ最適化(BO)における収束の評価指標。真の最適値と、ある時点までに観測した最良値との差。
 - **数式・仕組み**: `regret_t = g(x*) - max(g(x_1),...,g(x_t))`(`g(x*)`は真の大域最適値)。反復`t`が進むにつれて0に近づくほど、真の最適解に近い点を発見できていることを示す。
