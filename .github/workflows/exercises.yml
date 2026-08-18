@@ -1,0 +1,38 @@
+name: Grade exercises
+
+on:
+  push:
+    paths:
+      - "exercises/**"
+      - ".github/workflows/exercises.yml"
+  pull_request:
+    paths:
+      - "exercises/**"
+      - ".github/workflows/exercises.yml"
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: exercises/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r exercises/requirements.txt
+
+      - name: Run exercise tests
+        run: |
+          set -o pipefail
+          {
+            echo "## 演習の採点結果"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          pytest exercises -v --tb=short | tee -a "$GITHUB_STEP_SUMMARY"
+          status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit $status

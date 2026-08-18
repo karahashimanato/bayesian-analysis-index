@@ -56,6 +56,12 @@
 | [欠測データ処理の型](tools/missing-data.md) | MCAR/MAR/MNAR(欠測メカニズムの分類)、フルベイズ同時モデル/MICE/Selection Model/Pattern-Mixture Model/多変量同時欠測モデルの定義と使い分け |
 | [獲得関数の型](tools/acquisition-functions.md) | PI/EI/UCB/GP版Thompson Samplingの定義と使い分け |
 
+## 演習問題(コーディングテスト)
+
+`techniques/`・`tools/`の各エントリを実際にコードを書いて理解度確認できる自己学習用演習。push/PR時にGitHub Actionsが自動採点する。
+
+→ [exercises/](exercises/)
+
 ## 対象プロジェクト
 
 | プロジェクト | 概要 | index取り込み状況 |
