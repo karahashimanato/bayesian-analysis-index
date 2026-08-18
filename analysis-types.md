@@ -4,7 +4,7 @@
 
 ## 種類を見分ける特徴質問チャート
 
-新しい分析を始めるとき、12種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。ベイズ最適化はガウス過程を代理モデルに使う点で「ガウス過程回帰」の応用でもあり、獲得関数の1つGP版Thompson Samplingは離散腕のThompson Samplingを連続空間へ拡張したものという点で「多腕バンディット・OPE」とも重なる。図中の点線はそうした代表的な重複を示す。点過程・機構論的モデルの2ノードだけは、他カテゴリと異なり専用の`tools/`内訳ページを持たないため、代表的な実装技法(Hawkes過程・Euler法)を図中に直接ぶら下げている。
+新しい分析を始めるとき、12種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。ベイズ最適化はガウス過程を代理モデルに使う点で「ガウス過程回帰」の応用でもあり、獲得関数の1つGP版Thompson Samplingは離散腕のThompson Samplingを連続空間へ拡張したものという点で「多腕バンディット・OPE」とも重なる。図中の点線はそうした代表的な重複を示す。専用の`tools/`内訳ページを持たないカテゴリ(点過程・機構論的モデル・ベイズ的因果推論・階層ベイズモデル・生存時間分析・多腕バンディット/OPE・ベイズ回帰/A/Bテスト・ガウス過程回帰)は、代表的な実装技法を図中に直接ぶら下げている(技法が複数あるカテゴリは複数に分岐)。すでに専用の内訳ページを持つ状態空間モデル・空間モデル・欠測データ処理・ベイズ最適化・ベイズ深層学習は、詳細をそちらに譲るためここでは分岐させていない。
 
 ```mermaid
 flowchart LR
@@ -26,6 +26,27 @@ flowchart LR
 
     PP -->|"過去のイベントが将来の発生強度を<br/>一時的・累積的に押し上げる場合"| Hawkes["Hawkes過程<br/>(pm.Potentialで尤度を直接実装)"]
     MM -->|"区画モデル(SIR/SEIR等)の<br/>ODEを離散化して尤度を組む"| Euler["Euler法によるODE離散化<br/>(pytensor.scanで微分可能に)"]
+    CI -->|"時系列の反実仮想を<br/>状態空間モデルで構成する"| CausalGRW["GaussianRandomWalk<br/>(ローカルレベルトレンド)"]
+
+    HB -->|"二値の成功/失敗を階層化"| HB_BetaBin["Beta-Binomial<br/>(MLB打率)"]
+    HB -->|"カウントデータを階層化<br/>(overdispersion)"| HB_GammaPois["Gamma-Poisson<br/>(サメ襲撃件数)"]
+    HB -->|"複数カテゴリへの<br/>配分比率を階層化"| HB_DirMulti["Dirichlet-Multinomial<br/>(ポケモンカード封入率)"]
+
+    SA -->|"ハザード率が時間で一定"| SA_Exp["Exponential"]
+    SA -->|"ハザード率が時間で<br/>単調に増減"| SA_Weibull["Weibull"]
+    SA -->|"区間ごとに異なる一定ハザード<br/>(Cox比例ハザード)"| SA_PiecewiseExp["Piecewise Exponential"]
+    SA -->|"個体差(観測されない<br/>異質性)を追加したい"| SA_Frailty["Frailty"]
+
+    MAB -->|"次にどの腕を選ぶか<br/>(逐次的意思決定)"| MAB_TS["Thompson Sampling"]
+    MAB -->|"ログだけから新方策の<br/>性能を推定したい(OPE)"| MAB_OPE["IPS / DM / DR /<br/>SNIPS / SNDR"]
+
+    RB -->|"群間比較(CVR等)をしたい"| RB_BetaBin["Beta-Binomial<br/>(CVR比較)"]
+    RB -->|"線形の回帰関係を<br/>推定したい"| RB_Logistic["ロジスティック回帰"]
+    RB -->|"非線形の回帰関係を<br/>推定したい"| RB_Spline["P-スプライン"]
+
+    GP -->|"ガウス尤度・厳密GP"| GP_Marginal["pm.gp.Marginal<br/>(解析的周辺化)"]
+    GP -->|"非ガウス尤度<br/>(Poisson等)"| GP_HSGP["pm.gp.Latent + HSGP<br/>(基底関数近似)"]
+    GP -->|"大規模データ<br/>(千〜万点)"| GP_VFE["pm.gp.MarginalApprox<br/>(VFE、誘導点近似)"]
 
     CI -.重複しうる.- SSM
     MAB -.重複しうる.- HB
