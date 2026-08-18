@@ -55,6 +55,7 @@
 | [空間モデルの型](tools/spatial-models.md) | ICAR/BYM/BYM2/空間時系列BYM(Knorr-Held Type I〜IV)/LGCPの定義と使い分け |
 | [欠測データ処理の型](tools/missing-data.md) | MCAR/MAR/MNAR(欠測メカニズムの分類)、フルベイズ同時モデル/MICE/Selection Model/Pattern-Mixture Model/多変量同時欠測モデルの定義と使い分け |
 | [獲得関数の型](tools/acquisition-functions.md) | PI/EI/UCB/GP版Thompson Samplingの定義と使い分け |
+| [PyMC/ArviZコーディングパターン](tools/pymc-code-patterns.md) | 12プロジェクト横断で頻出するPyMC/ArviZの実装イディオム(非中心化パラメータ化・prior predictive check・診断チェックなど)のカンニングペーパー |
 
 ## 対象プロジェクト
 
