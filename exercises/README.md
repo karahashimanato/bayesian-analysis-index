@@ -12,24 +12,32 @@
 | `solution.py` | 実装対象の関数スタブ(`NotImplementedError`を実装で置き換える) |
 | `test_solution.py` | 採点用のpytestテスト(このファイルは編集しない) |
 
-## 解き方
+## 解き方(オンデマンド採点)
 
 1. 好きな演習の `problem.md` を読む
 2. `solution.py` を実装する
-3. リポジトリルートで該当ディレクトリを指定してpytestを実行し、ローカルで確認する
+3. `exercises/grade.py` でその場で採点する(git操作は不要)
 
    ```bash
    pip install -r exercises/requirements.txt
-   pytest exercises/mcmc_diagnostics/ex01_rhat_classification -v
+
+   # 演習一覧を表示(名前の一部を指定して採点する)
+   python exercises/grade.py
+
+   # 名前の一部を指定して1問だけ採点
+   python exercises/grade.py rhat_classification
+
+   # 全演習を採点
+   python exercises/grade.py all
    ```
 
-   全演習をまとめて実行する場合:
+   pass/failがその場で表示される(passなら終了コード0、failなら1)。git pull/pushは不要で、何度でも即座に採点し直せる。
 
-   ```bash
-   pytest exercises -v
-   ```
+`pytest`を直接使っても同じ結果になる(`pytest exercises/mcmc_diagnostics/ex01_rhat_classification -v`)。
 
-4. すべて green になったら commit して push(またはPRを作成)する。[GitHub Actions](../.github/workflows/exercises.yml) が同じテストを自動実行し、結果がチェックとジョブサマリーに表示される。
+## GitHub Actionsでの採点(任意)
+
+commitしてpush(またはPR作成)すると、[GitHub Actions](../.github/workflows/exercises.yml) が同じテストを自動実行し、結果がチェックとジョブサマリーに表示される。ローカルで解き終えた演習を記録として残したい場合に使う。オンデマンド採点だけで完結させたい場合はpush自体不要。
 
 ## 演習一覧
 
