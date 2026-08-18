@@ -4,7 +4,7 @@
 
 ## 種類を見分ける特徴質問チャート
 
-新しい分析を始めるとき、12種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。ベイズ最適化はガウス過程を代理モデルに使う点で「ガウス過程回帰」の応用でもあり、獲得関数の1つGP版Thompson Samplingは離散腕のThompson Samplingを連続空間へ拡張したものという点で「多腕バンディット・OPE」とも重なる。図中の点線はそうした代表的な重複を示す。
+新しい分析を始めるとき、12種類のどれに当たるかを見分けるための特徴質問一覧。各質問は独立した判定基準であり、上から順にYes/Noで絞り込んでいく決定木ではない(複数の質問にYesと答えることもある)。実際、Multi-Armed-Banditは「多腕バンディット・OPE」であると同時に「階層ベイズモデル」でもあり、bayesian-causal-inferenceも「ベイズ的因果推論」であると同時に、反実仮想の構成そのものは「状態空間モデル」でもある。空間モデルの空間点過程(LGCP)も、時間軸を空間軸に置き換えただけの「点過程」でもある。ベイズ最適化はガウス過程を代理モデルに使う点で「ガウス過程回帰」の応用でもあり、獲得関数の1つGP版Thompson Samplingは離散腕のThompson Samplingを連続空間へ拡張したものという点で「多腕バンディット・OPE」とも重なる。図中の点線はそうした代表的な重複を示す。点過程・機構論的モデルの2ノードだけは、他カテゴリと異なり専用の`tools/`内訳ページを持たないため、代表的な実装技法(Hawkes過程・Euler法)を図中に直接ぶら下げている。
 
 ```mermaid
 flowchart LR
@@ -23,6 +23,9 @@ flowchart LR
     Start -->|"データの一部が構造的に観測できず、<br/>欠測の仕組みに応じて補正・補完したい"| MD["欠測データ処理<br/>Missing Data / Imputation"]
     Start -->|"評価コストの高い関数を、少ない評価回数で<br/>逐次的に最適化したい"| BO["ベイズ最適化<br/>Bayesian Optimization"]
     Start -->|"ニューラルネットの予測に、epistemic/aleatoric<br/>不確実性を定量化して持たせたい"| BDL["ベイズ深層学習<br/>Bayesian Deep Learning"]
+
+    PP -->|"過去のイベントが将来の発生強度を<br/>一時的・累積的に押し上げる場合"| Hawkes["Hawkes過程<br/>(pm.Potentialで尤度を直接実装)"]
+    MM -->|"区画モデル(SIR/SEIR等)の<br/>ODEを離散化して尤度を組む"| Euler["Euler法によるODE離散化<br/>(pytensor.scanで微分可能に)"]
 
     CI -.重複しうる.- SSM
     MAB -.重複しうる.- HB
@@ -49,7 +52,7 @@ flowchart LR
 - **定義**: 対象システムの因果的な生成過程(感染症の伝播メカニズムなど)を、微分方程式のような明示的な構造方程式で記述し、そのパラメータをベイズ推定するモデル。
 - **代表的な問い**: このシステムを支配する構造的パラメータ(感染率、回復率など)はいくつか。将来の挙動はどう予測されるか。
 - **登場プロジェクト**: [bayesian-epidemiological-models](https://github.com/karahashimanato/bayesian-epidemiological-models/blob/main/README.md)(SIR/SIS/SIRS/SEIR)
-- **関連ページ**: [tools/observation-models.md](tools/observation-models.md#poisson)(Poisson観測分布) / [tools/greek-letters.md](tools/greek-letters.md)(β,γ,σ,δ,ξ,φ等)
+- **関連ページ**: [tools/observation-models.md](tools/observation-models.md#poisson)(Poisson観測分布) / [tools/greek-letters.md](tools/greek-letters.md)(β,γ,σ,δ,ξ,φ等) / [tools/pymc-code-patterns.md](tools/pymc-code-patterns.md#euler法によるsirseirのode積分pytensorscan)(Euler法によるODE離散化の実装)
 
 ---
 
