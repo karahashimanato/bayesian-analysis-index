@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyMC Typing Practice</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <h1>PyMC Typing Practice</h1>
+  <p class="app-sub">bayesian-analysis-index の techniques/・tools/ から抽出した実コード・API名でタッチタイピング練習</p>
+</header>
+
+<main id="view-chapters" class="view">
+  <div id="chapter-list" class="chapter-list"></div>
+</main>
+
+<main id="view-game" class="view hidden">
+  <div class="game-topbar">
+    <button id="btn-back" class="btn-ghost">&larr; 章一覧</button>
+    <h2 id="game-title"></h2>
+    <div class="stats">
+      <div class="stat"><span class="stat-label">経過時間</span><span id="stat-time" class="stat-value">00:00</span></div>
+      <div class="stat"><span class="stat-label">正解率</span><span id="stat-accuracy" class="stat-value">0.00%</span></div>
+      <div class="stat"><span class="stat-label">スコア</span><span id="stat-score" class="stat-value">0.0</span></div>
+      <div class="stat"><span class="stat-label">問題</span><span id="stat-progress" class="stat-value">0 / 0</span></div>
+    </div>
+  </div>
+
+  <div id="panel-start" class="panel-overlay">
+    <p id="start-summary"></p>
+    <button id="btn-start" class="btn-primary">START</button>
+  </div>
+
+  <div id="panel-play" class="panel-overlay hidden">
+    <pre id="target-display" class="target-display"></pre>
+    <textarea id="typing-input" class="typing-input" autocomplete="off" autocorrect="off"
+      autocapitalize="off" spellcheck="false" rows="1" placeholder="ここに入力…"></textarea>
+  </div>
+
+  <div id="panel-result" class="panel-overlay hidden">
+    <h3>お疲れさまでした</h3>
+    <ul class="result-list">
+      <li>経過時間: <span id="result-time"></span></li>
+      <li>正解率: <span id="result-accuracy"></span></li>
+      <li>スコア: <span id="result-score"></span></li>
+    </ul>
+    <div class="result-actions">
+      <button id="btn-retry" class="btn-primary">もう一度</button>
+      <button id="btn-to-list" class="btn-ghost">章一覧に戻る</button>
+    </div>
+  </div>
+</main>
+
+<script src="data/snippets.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

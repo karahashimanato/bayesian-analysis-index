@@ -1,0 +1,196 @@
+:root {
+  --bg: #1e1f29;
+  --panel: #282a3a;
+  --panel-alt: #323449;
+  --border: #3f4257;
+  --text: #e6e6f0;
+  --text-dim: #9494ad;
+  --accent: #7cc4ff;
+  --correct: #6fd88a;
+  --wrong: #ff6b7f;
+  --wrong-bg: rgba(255, 107, 127, 0.18);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+}
+
+.app-header {
+  padding: 24px 32px 12px;
+  text-align: center;
+}
+.app-header h1 {
+  margin: 0 0 6px;
+  font-size: 1.6rem;
+  letter-spacing: 0.02em;
+}
+.app-sub {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+}
+
+.view { padding: 16px 32px 48px; }
+.hidden { display: none !important; }
+
+/* ---- chapter list ---- */
+.chapter-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  max-width: 1100px;
+  margin: 16px auto 0;
+}
+.chapter-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+  text-align: left;
+}
+.chapter-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.chapter-card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: var(--text);
+}
+.chapter-card .meta {
+  color: var(--text-dim);
+  font-size: 0.8rem;
+}
+.chapter-card .meta a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.chapter-card .meta a:hover { text-decoration: underline; }
+
+/* ---- game topbar ---- */
+.game-topbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  max-width: 900px;
+  margin: 0 auto 18px;
+  flex-wrap: wrap;
+}
+.game-topbar h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.1rem;
+  min-width: 160px;
+}
+.stats {
+  display: flex;
+  gap: 18px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 64px;
+}
+.stat-label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+}
+.stat-value {
+  font-family: "SFMono-Regular", Consolas, monospace;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.btn-primary, .btn-ghost {
+  font-size: 0.9rem;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.btn-primary {
+  background: var(--accent);
+  color: #10131c;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--accent); }
+
+/* ---- panels ---- */
+.panel-overlay {
+  max-width: 900px;
+  margin: 0 auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px;
+  text-align: center;
+}
+#start-summary {
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+/* ---- play panel ---- */
+#panel-play { text-align: left; }
+.target-display {
+  font-family: "SFMono-Regular", Consolas, "Menlo", monospace;
+  font-size: 1.15rem;
+  line-height: 1.7;
+  background: var(--panel-alt);
+  border-radius: 8px;
+  padding: 20px 22px;
+  margin: 0 0 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 3.4em;
+}
+.char-pending { color: var(--text-dim); }
+.char-correct { color: var(--correct); }
+.char-wrong { color: var(--wrong); background: var(--wrong-bg); border-radius: 2px; }
+.char-current { border-bottom: 2px solid var(--accent); }
+
+.typing-input {
+  width: 100%;
+  resize: none;
+  font-family: "SFMono-Regular", Consolas, "Menlo", monospace;
+  font-size: 1.1rem;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+.typing-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ---- result ---- */
+.result-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+.result-list li { margin: 6px 0; }
+.result-list span { color: var(--text); font-weight: 600; }
+.result-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
